@@ -1,0 +1,25 @@
+version: "3.8"
+services:
+  pg:
+    image: postgres:13
+    ports:
+      - "5432:5432"
+    volumes:
+      - "./data:/var/lib/postgresql/data"
+    environment:
+      POSTGRES_PASSWORD: password
+
+  web:
+    image: nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - "./html:/usr/share/nginx/html"
+      - "./config:/etc/nginx/conf.d"
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379"
+    volumes:
+      - "/tmp/redis-data:/data"
