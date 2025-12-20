@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(nvidia-smi:*)",
+      "Bash(pip uninstall:*)",
+      "Bash(conda install:*)",
+      "Bash(pip install:*)"
+    ],
+    "deny": []
+  }
+}
