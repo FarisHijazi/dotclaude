@@ -9,3 +9,6 @@
 /history.jsonl
 /stats-cache.json
 /.credentials.json
+*.db
+**/cache/**
+**/.DS_Store
