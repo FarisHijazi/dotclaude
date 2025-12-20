@@ -1,0 +1,1 @@
+# Tests skill templates

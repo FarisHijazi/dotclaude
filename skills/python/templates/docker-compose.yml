@@ -1,0 +1,108 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: {{PROJECT_NAME}}_app
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      - APP_NAME=${APP_NAME:-{{PROJECT_NAME}}}
+      - APP_ENV=${APP_ENV:-production}
+      - DEBUG=${DEBUG:-false}
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-{{PROJECT_NAME}}}
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/api/v1/health/live')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - {{PROJECT_NAME}}_network
+
+  app-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: {{PROJECT_NAME}}_app_dev
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      - APP_NAME=${APP_NAME:-{{PROJECT_NAME}}}
+      - APP_ENV=development
+      - DEBUG=true
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-{{PROJECT_NAME}}}
+      - SECRET_KEY=dev-secret-key
+    volumes:
+      - .:/app
+      - /app/.venv
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - {{PROJECT_NAME}}_network
+    profiles:
+      - dev
+
+  db:
+    image: postgres:16-alpine
+    container_name: {{PROJECT_NAME}}_db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-{{PROJECT_NAME}}}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-{{PROJECT_NAME}}}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - {{PROJECT_NAME}}_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: {{PROJECT_NAME}}_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - {{PROJECT_NAME}}_network
+    profiles:
+      - full
+
+volumes:
+  postgres_data:
+    name: {{PROJECT_NAME}}_postgres_data
+  redis_data:
+    name: {{PROJECT_NAME}}_redis_data
+
+networks:
+  {{PROJECT_NAME}}_network:
+    name: {{PROJECT_NAME}}_network
+    driver: bridge
