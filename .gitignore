@@ -1,0 +1,11 @@
+/.vscode
+/debug/
+/file-history/
+/ide/
+/projects/
+/todos/
+/statsig/
+/shell-snapshots/
+/history.jsonl
+/stats-cache.json
+/.credentials.json
