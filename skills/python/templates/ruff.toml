@@ -105,8 +105,7 @@ runtime-evaluated-base-classes = [
 max-args = 10
 
 [format]
-# Use double quotes for strings
-quote-style = "double"
+quote-style = "single"
 
 # Indent with spaces
 indent-style = "space"
