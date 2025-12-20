@@ -1,0 +1,122 @@
+# Ruff configuration
+# https://docs.astral.sh/ruff/configuration/
+
+# Target Python version
+target-version = "py312"
+
+# Line length to match Black
+line-length = 88
+
+# Exclude common directories
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+    ".venv",
+]
+
+[lint]
+# Enable these rule sets
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "ARG",    # flake8-unused-arguments
+    "SIM",    # flake8-simplify
+    "TCH",    # flake8-type-checking
+    "PTH",    # flake8-use-pathlib
+    "ERA",    # eradicate (commented-out code)
+    "PL",     # Pylint
+    "RUF",    # Ruff-specific rules
+    "PERF",   # Perflint
+    "FURB",   # refurb
+    "LOG",    # flake8-logging
+    "S",      # flake8-bandit (security)
+    "T20",    # flake8-print
+    "DTZ",    # flake8-datetimez
+    "ASYNC",  # flake8-async
+    "TID",    # flake8-tidy-imports
+]
+
+# Ignore specific rules
+ignore = [
+    "E501",    # line too long (handled by formatter)
+    "B008",    # do not perform function calls in argument defaults (needed for FastAPI Depends)
+    "PLR0913", # too many arguments
+    "PLR2004", # magic value comparison
+    "S101",    # use of assert (needed for tests)
+]
+
+# Allow autofix for all enabled rules
+fixable = ["ALL"]
+unfixable = []
+
+# Allow unused variables when underscore-prefixed
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[lint.per-file-ignores]
+# Tests can use assert and have more relaxed rules
+"tests/**/*.py" = [
+    "S101",    # assert is fine in tests
+    "ARG",     # unused arguments are fine (fixtures)
+    "PLR2004", # magic values are fine in tests
+]
+# CLI can use print
+"**/cli/**/*.py" = ["T20"]
+
+[lint.isort]
+known-first-party = ["{{PROJECT_NAME}}"]
+force-single-line = false
+lines-after-imports = 2
+
+[lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[lint.flake8-type-checking]
+strict = true
+runtime-evaluated-base-classes = [
+    "pydantic.BaseModel",
+    "sqlmodel.SQLModel",
+]
+
+[lint.pylint]
+max-args = 10
+
+[format]
+# Use double quotes for strings
+quote-style = "double"
+
+# Indent with spaces
+indent-style = "space"
+
+# Respect magic trailing commas
+skip-magic-trailing-comma = false
+
+# Automatically detect line ending
+line-ending = "auto"
+
+# Format docstrings
+docstring-code-format = true
+docstring-code-line-length = 80
