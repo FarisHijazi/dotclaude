@@ -7,6 +7,7 @@ IMPORTANT: NEVER reboot or shutdown the machine, NEVER restart the docker runtim
 - Unless absolutely necessary, do not use `python -c "..."` or `exec()`, `bash -c ` for running large chunks of code (large means more than 3 lines). Instead write the code to a file and execute it
 - When files are not meant to be modified directly, avoid modifying them directly, and instead use an appropriate CLI tool or conversion script. For example, to create a pyproject.toml, use `uv init` and update it, rather than writing it manually from scratch. likewise with `uv.lock`. Another example: to write a jupyter notebook, do NOT write the raw JSON content to a ipynb file, instead write to an intermediate format that's more human readable and less likely to cause mistakes such as a .py file with #%% or anything else, and then use a conversion script/command.
 - When asked to create/write large generic boilerplate files, download them from the internet when possible, such as a .gitignore for Python, download it from https://github.com/github/gitignore/blob/main/Python.gitignore . and so on... when asking you to write the latest state of the art pre-commit-config.yaml, instead of doing so with memory, search the internet for the different hooks I asked for and combine them. If needed, use a ./tmp/ dir to download stuff and then combine them manually.
+- In python, always keep the __init__.py files totally empty as using them can be confusing
 
 ## Documentation
 
