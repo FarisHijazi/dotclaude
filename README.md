@@ -8,3 +8,8 @@ cd ~/.claude && \
     mv dotclaude/.git . && \
     rm -rf dotclaude
 ```
+
+## TODO
+
+- [ ] TODO: add ability to fork sessions within tmux
+- [ ] TODO: search for existing tmux+cc
