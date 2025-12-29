@@ -11,7 +11,8 @@ IMPORTANT: NEVER reboot or shutdown the machine, NEVER restart the docker runtim
 
 ## Documentation
 
-Always update CLAUDE.md before git commit. If you are in a monorepo or folder with multiple projects or even sub or sub sub projects, make a CLAUDE.md that is separate for the root and separate for each project as seen fit.
+- Document whatever you do before you stop coding, write it in `./docs/devlog/claude_{DATETIME}-{DESCRIPTION}.md`. You might also want to read the devlog folder to see if any other devs left any important notes.
+- Always update CLAUDE.md before git commit. If you are in a monorepo or folder with multiple projects or even sub or sub sub projects, make a CLAUDE.md that is separate for the root and separate for each project as seen fit.
 
 # Development Workflow
 
