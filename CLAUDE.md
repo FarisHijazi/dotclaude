@@ -30,6 +30,12 @@ Use something that already exists; avoid implementing from scratch unless absolu
 
 When I ask you to configure a project/repo from scratch, I expect you to not do the minimum and to properly configure it. If it's a configuration/deployment/setup task, I expect you to configure it, not to code or develop. I expect it to be properly set up, working, and configured. For example, if it's possible to configure the database or set an API key in the env vars, then I'd expect you to do that; I shouldn't have to open the UI and do it myself. You should carefully search and read the docs and set it up and configure it properly with whatever environment variables are possible. Then, in the case it can't be configured via env vars and without writing code, report to me at the end what I need to do.
 
+
+## My coding opinions:
+- top priority: it works and is elegant and simple with less code usually being better
+- in terms of architecture, I love having a "narrow-waste" or a "bottleneck" where there is a single source of truth rather than information being scattered
+- usually I like functional stateless programming when possible
+
 Follow these principles:
 
 ### KISS (Keep It Simple, Stupid)
