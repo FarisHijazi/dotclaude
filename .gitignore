@@ -14,3 +14,7 @@
 **/.DS_Store
 /config.json
 /telemetry/
+
+**/paste-cache/**
+/backups/
+/tasks/
