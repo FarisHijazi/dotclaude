@@ -1,3 +1,18 @@
 {
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "permissions": {
+    "allow": [
+      "Bash(claude plugin:*)",
+      "Read(//private/tmp/work-skills-check/**)",
+      "Read(//private/tmp/work-skills-check/work-arabic/**)"
+    ],
+    "defaultMode": "default"
+  },
+  "effortLevel": "high",
+  "voiceEnabled": true,
+  "skipDangerousModePermissionPrompt": true,
   "alwaysThinkingEnabled": false
 }
