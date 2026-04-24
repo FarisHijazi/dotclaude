@@ -180,23 +180,93 @@ function formatDuration(ms) {
   return `${m}m`;
 }
 
-// --- message count tracking -------------------------------------------------
+// --- session tracking from JSONL conversation files -------------------------
 
-function getAndIncrementMessageCount(session) {
-  if (!session) return null;
+const _sessionCache = {};
+
+function getSessionTracking(session, transcriptPath) {
+  if (!session) return { count: null, firstMessageTime: null, agentColor: null };
   try {
-    const countFile = path.join(os.tmpdir(), `claude-msgcount-${session}.json`);
-    let count = 0;
-    if (fs.existsSync(countFile)) {
-      const data = JSON.parse(fs.readFileSync(countFile, 'utf8'));
-      count = data.count || 0;
+    const jsonlPath = transcriptPath;
+    if (!jsonlPath || !fs.existsSync(jsonlPath)) return { count: null, firstMessageTime: null, agentColor: null };
+
+    const content = fs.readFileSync(jsonlPath, 'utf8');
+
+    // Get first user message timestamp (cached after first read)
+    let firstMessageTime = _sessionCache[session] || null;
+    if (firstMessageTime === null) {
+      const lines = content.split('\n');
+      for (const line of lines) {
+        if (!line || !line.includes('"type":"user"')) continue;
+        try {
+          const entry = JSON.parse(line);
+          if (entry.type === 'user' && entry.timestamp) {
+            firstMessageTime = new Date(entry.timestamp).getTime();
+            _sessionCache[session] = firstMessageTime;
+            break;
+          }
+        } catch (e) {}
+      }
     }
-    count++;
-    fs.writeFileSync(countFile, JSON.stringify({ count }));
-    return count;
+
+    // Fast string count for user messages (avoids parsing every line)
+    const count = (content.match(/"type":"user"/g) || []).length;
+
+    // Extract latest agentColor from JSONL (set by /color command)
+    let agentColor = null;
+    const colorMatches = content.match(/"agentColor":"[^"]+"/g);
+    if (colorMatches && colorMatches.length > 0) {
+      const last = colorMatches[colorMatches.length - 1];
+      const m = last.match(/"agentColor":"([^"]+)"/);
+      if (m) agentColor = m[1];
+    }
+
+    return { count: count || null, firstMessageTime, agentColor };
   } catch (e) {
-    return null;
+    return { count: null, firstMessageTime: null, agentColor: null };
   }
+}
+
+// --- tmux color sync --------------------------------------------------------
+
+const CLAUDE_COLOR_TO_TMUX = {
+  red: 196, blue: 33, green: 46, yellow: 226,
+  purple: 129, orange: 208, pink: 199, cyan: 51,
+};
+
+let _lastTmuxColor = null;
+
+function syncTmuxColor(agentColor) {
+  if (!process.env.TMUX) return;
+
+  // Direction 1: Claude /color → tmux (takes priority)
+  // Direction 2: TCC_COLOR env var → no action needed (already set by tcc)
+  let color256 = null;
+  if (agentColor && agentColor !== 'default') {
+    color256 = CLAUDE_COLOR_TO_TMUX[agentColor];
+  } else if (process.env.TCC_COLOR) {
+    color256 = parseInt(process.env.TCC_COLOR, 10);
+  }
+
+  if (color256 == null || color256 === _lastTmuxColor) return;
+  _lastTmuxColor = color256;
+
+  try {
+    require('child_process').execSync(
+      `tmux set-option -q status-style bg=colour${color256}`,
+      { stdio: 'ignore', timeout: 500 }
+    );
+  } catch (e) {}
+}
+
+function formatRelativeTime(date, now) {
+  const pad = n => String(n).padStart(2, '0');
+  const time = `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfThatDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const daysAgo = Math.floor((startOfToday - startOfThatDay) / (24 * 60 * 60 * 1000));
+  if (daysAgo === 0) return time;
+  return `${daysAgo}d ago ${time}`;
 }
 
 // --- stdin ------------------------------------------------------------------
@@ -218,23 +288,22 @@ function runStatusline() {
     const session = data.session_id || '';
     const remaining = data.context_window?.remaining_percentage;
 
-    // --- datetime of last message (= now, since statusline fires after each turn) ---
+    // --- session tracking (first message time, count, last message time) ---
     const now = new Date();
-    const pad = n => String(n).padStart(2, '0');
-    const datetime = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    const transcriptPath = data.transcript_path || '';
+    const { count: msgCount, firstMessageTime, agentColor } = getSessionTracking(session, transcriptPath);
 
-    // --- session start time (derived from total_duration_ms) ---
-    const totalDurationMs = data.cost?.total_duration_ms;
-    let sessionStartStr = '';
+    syncTmuxColor(agentColor);
+
+    const lastMsgStr = formatRelativeTime(now, now);
+    let startStr = '';
     let durationStr = '';
-    if (totalDurationMs != null && totalDurationMs > 0) {
-      const sessionStart = new Date(now.getTime() - totalDurationMs);
-      sessionStartStr = `${pad(sessionStart.getHours())}:${pad(sessionStart.getMinutes())}`;
-      durationStr = formatDuration(totalDurationMs);
+    if (firstMessageTime != null) {
+      const firstMsg = new Date(firstMessageTime);
+      startStr = formatRelativeTime(firstMsg, now);
+      const elapsed = now.getTime() - firstMessageTime;
+      if (elapsed > 0) durationStr = formatDuration(elapsed);
     }
-
-    // --- message count ---
-    const msgCount = getAndIncrementMessageCount(session);
 
     // --- vim mode ---
     let vimMode = '';
@@ -446,10 +515,10 @@ function runStatusline() {
       ? `\x1b[2m${dirname}\x1b[0m \x1b[2m(\x1b[36m${branch}\x1b[0m\x1b[2m)\x1b[0m`
       : `\x1b[2m${dirname}\x1b[0m`;
 
-    // Time block at far right: "started 14:30, last 14:45, 15m, #8"
+    // Time block at far right: "started 1d ago 16:06, last 16:06, 24h, #59"
     const timeParts = [];
-    if (sessionStartStr) timeParts.push(`started ${sessionStartStr}`);
-    timeParts.push(`last ${datetime}`);
+    if (startStr) timeParts.push(`started ${startStr}`);
+    timeParts.push(`last ${lastMsgStr}`);
     if (durationStr) timeParts.push(durationStr);
     if (msgCount != null) timeParts.push(`#${msgCount}`);
     const timeBlock = `\x1b[2m${timeParts.join(', ')}\x1b[0m`;
