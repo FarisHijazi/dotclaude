@@ -18,3 +18,5 @@
 **/paste-cache/**
 /backups/
 /tasks/
+/node_modules/
+

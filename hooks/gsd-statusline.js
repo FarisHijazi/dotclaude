@@ -185,10 +185,10 @@ function formatDuration(ms) {
 const _sessionCache = {};
 
 function getSessionTracking(session, transcriptPath) {
-  if (!session) return { count: null, firstMessageTime: null, agentColor: null };
+  if (!session) return { count: null, firstMessageTime: null, lastMessageTime: null, agentColor: null };
   try {
     const jsonlPath = transcriptPath;
-    if (!jsonlPath || !fs.existsSync(jsonlPath)) return { count: null, firstMessageTime: null, agentColor: null };
+    if (!jsonlPath || !fs.existsSync(jsonlPath)) return { count: null, firstMessageTime: null, lastMessageTime: null, agentColor: null };
 
     const content = fs.readFileSync(jsonlPath, 'utf8');
 
@@ -212,6 +212,34 @@ function getSessionTracking(session, transcriptPath) {
     // Fast string count for user messages (avoids parsing every line)
     const count = (content.match(/"type":"user"/g) || []).length;
 
+    // Find last user chat message timestamp (exclude tool_results and ! bash commands)
+    let lastMessageTime = null;
+    const lines = content.split('\n');
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i];
+      if (!line || !line.includes('"type":"user"')) continue;
+      try {
+        const entry = JSON.parse(line);
+        if (entry.type !== 'user' || !entry.timestamp) continue;
+        const msg = entry.message;
+        if (!msg || !msg.content) continue;
+        // String content = direct user chat
+        if (typeof msg.content === 'string') {
+          if (msg.content.trimStart().startsWith('!')) continue;
+          lastMessageTime = new Date(entry.timestamp).getTime();
+          break;
+        }
+        // Array content: look for text blocks (skip pure tool_result messages)
+        if (Array.isArray(msg.content)) {
+          const textBlock = msg.content.find(b => b.type === 'text');
+          if (!textBlock) continue;
+          if (typeof textBlock.text === 'string' && textBlock.text.trimStart().startsWith('!')) continue;
+          lastMessageTime = new Date(entry.timestamp).getTime();
+          break;
+        }
+      } catch (e) {}
+    }
+
     // Extract latest agentColor from JSONL (set by /color command)
     let agentColor = null;
     const colorMatches = content.match(/"agentColor":"[^"]+"/g);
@@ -221,9 +249,9 @@ function getSessionTracking(session, transcriptPath) {
       if (m) agentColor = m[1];
     }
 
-    return { count: count || null, firstMessageTime, agentColor };
+    return { count: count || null, firstMessageTime, lastMessageTime, agentColor };
   } catch (e) {
-    return { count: null, firstMessageTime: null, agentColor: null };
+    return { count: null, firstMessageTime: null, lastMessageTime: null, agentColor: null };
   }
 }
 
@@ -269,6 +297,19 @@ function formatRelativeTime(date, now) {
   return `${daysAgo}d ago ${time}`;
 }
 
+function formatDurationAgo(ms) {
+  if (ms < 0) return 'now';
+  const sec = Math.floor(ms / 1000);
+  if (sec < 60) return `${sec}s ago`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}min ago`;
+  const hr = Math.floor(min / 60);
+  const remMin = min % 60;
+  if (hr < 24) return remMin > 0 ? `${hr}h${String(remMin).padStart(2,'0')}m ago` : `${hr}h ago`;
+  const days = Math.floor(hr / 24);
+  return `${days}d ago`;
+}
+
 // --- stdin ------------------------------------------------------------------
 
 function runStatusline() {
@@ -291,11 +332,13 @@ function runStatusline() {
     // --- session tracking (first message time, count, last message time) ---
     const now = new Date();
     const transcriptPath = data.transcript_path || '';
-    const { count: msgCount, firstMessageTime, agentColor } = getSessionTracking(session, transcriptPath);
+    const { count: msgCount, firstMessageTime, lastMessageTime, agentColor } = getSessionTracking(session, transcriptPath);
 
     syncTmuxColor(agentColor);
 
-    const lastMsgStr = formatRelativeTime(now, now);
+    const lastMsgStr = lastMessageTime != null
+      ? formatDurationAgo(now.getTime() - lastMessageTime)
+      : formatDurationAgo(0);
     let startStr = '';
     let durationStr = '';
     if (firstMessageTime != null) {

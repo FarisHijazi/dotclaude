@@ -2,6 +2,8 @@
 
 IMPORTANT: NEVER reboot or shut down the machine, NEVER restart the Docker runtime, or mess with system internals.
 
+read @CLAUDE.local.md for private instructions
+
 ## Tool calling and specifics
 
 - Unless absolutely necessary, do not use `python -c "..."`, `exec()`, or `bash -c` for running large chunks of code (large means more than 3 lines). Instead, write the code to a file and execute it.
