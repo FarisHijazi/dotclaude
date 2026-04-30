@@ -9,10 +9,15 @@
       "Read(//private/tmp/work-skills-check/**)",
       "Read(//private/tmp/work-skills-check/work-arabic/**)"
     ],
-    "defaultMode": "default"
+    "defaultMode": "auto"
   },
+  "model": "claude-opus-4-6",
+  "alwaysThinkingEnabled": true,
   "effortLevel": "high",
-  "voiceEnabled": true,
   "skipDangerousModePermissionPrompt": true,
-  "alwaysThinkingEnabled": false
+  "preferredNotifChannel": "terminal_bell",
+  "remoteControlAtStartup": true,
+  "agentPushNotifEnabled": true,
+  "skipAutoPermissionPrompt": true,
+  "voiceEnabled": true
 }
