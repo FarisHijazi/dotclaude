@@ -110,18 +110,76 @@ if [ "$ORIGINAL_PATH" != "$TARGET_PATH" ]; then
     sed -i'' -e "s|$ORIGINAL_PATH|$TARGET_PATH|g" {} +
 fi
 
-# Copy project history (merge, don't overwrite existing)
-if [ -d "$DEST" ]; then
-  echo "Warning: destination already has history. Merging (existing files preserved)."
-  cp -an "$IMPORT_DIR/project-history/"* "$DEST/" 2>/dev/null || cp -n "$IMPORT_DIR/project-history/"* "$DEST/"
-else
-  mkdir -p "$DEST"
-  cp -a "$IMPORT_DIR/project-history/"* "$DEST/"
-fi
+# Smart-merge project history
+mkdir -p "$DEST"
+python3 << 'PYMERGE'
+import os, sys, filecmp, shutil
 
-# Copy session files (with path rewriting already applied)
+src = os.path.join(os.environ.get("IMPORT_DIR", ""), "project-history")
+dst = os.environ.get("DEST", "")
+conflicts = []
+
+for root, dirs, files in os.walk(src):
+    rel = os.path.relpath(root, src)
+    dst_dir = os.path.join(dst, rel) if rel != "." else dst
+    os.makedirs(dst_dir, exist_ok=True)
+    for f in files:
+        src_file = os.path.join(root, f)
+        dst_file = os.path.join(dst_dir, f)
+        if not os.path.exists(dst_file):
+            shutil.copy2(src_file, dst_file)
+            continue
+        # Both exist — check if identical
+        if filecmp.cmp(src_file, dst_file, shallow=False):
+            continue
+        # For JSONL (append-only): longer file is superset → take it
+        if f.endswith(".jsonl"):
+            src_size = os.path.getsize(src_file)
+            dst_size = os.path.getsize(dst_file)
+            if src_size > dst_size:
+                # Verify existing is a prefix of incoming
+                with open(dst_file, "rb") as d, open(src_file, "rb") as s:
+                    existing = d.read()
+                    if s.read(len(existing)) == existing:
+                        shutil.copy2(src_file, dst_file)
+                        print(f"  ↑ upgraded (superset): {os.path.join(rel, f)}")
+                        continue
+            elif dst_size > src_size:
+                # Local is already the superset, keep it
+                continue
+            # Neither is prefix of other — true conflict
+            conflicts.append(os.path.join(rel, f))
+            shutil.copy2(src_file, dst_file + ".incoming")
+        # For JSON: take the newer (larger mtime), or keep both if divergent
+        elif f.endswith(".json"):
+            src_mt = os.path.getmtime(src_file)
+            dst_mt = os.path.getmtime(dst_file)
+            if src_mt > dst_mt:
+                shutil.copy2(src_file, dst_file)
+                print(f"  ↑ updated (newer): {os.path.join(rel, f)}")
+            # else keep existing (it's newer or same age)
+        else:
+            # Unknown file type — keep both
+            conflicts.append(os.path.join(rel, f))
+            shutil.copy2(src_file, dst_file + ".incoming")
+
+if conflicts:
+    print(f"\n⚠ {len(conflicts)} conflict(s) — saved as .incoming:")
+    for c in conflicts:
+        print(f"    {c}")
+else:
+    print("  ✓ merged cleanly (no conflicts)")
+PYMERGE
+
+# Smart-merge session files
 if [ -d "$IMPORT_DIR/sessions" ] && [ "$(ls -A "$IMPORT_DIR/sessions/" 2>/dev/null)" ]; then
-  cp -n "$IMPORT_DIR/sessions/"* "$HOME/.claude/sessions/" 2>/dev/null || true
+  for f in "$IMPORT_DIR/sessions/"*; do
+    base=$(basename "$f")
+    target="$HOME/.claude/sessions/$base"
+    if [ ! -f "$target" ]; then
+      cp "$f" "$target"
+    fi
+  done
 fi
 
 # Cleanup
