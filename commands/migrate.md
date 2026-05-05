@@ -98,9 +98,17 @@ DEST="$HOME/.claude/projects/$ENCODED"
 IMPORT_DIR=$(mktemp -d)
 tar -xzf "$ARCHIVE" -C "$IMPORT_DIR"
 
-# Show metadata
+# Show metadata and read original path for rewriting
 echo "Importing history from:"
 cat "$IMPORT_DIR/migrate-meta.json" | python3 -m json.tool 2>/dev/null || cat "$IMPORT_DIR/migrate-meta.json"
+ORIGINAL_PATH=$(python3 -c "import json; print(json.load(open('$IMPORT_DIR/migrate-meta.json'))['original_path'])")
+
+# Rewrite absolute paths in all JSON/JSONL files if original != target
+if [ "$ORIGINAL_PATH" != "$TARGET_PATH" ]; then
+  echo "Rewriting paths: $ORIGINAL_PATH → $TARGET_PATH"
+  find "$IMPORT_DIR" -type f \( -name "*.json" -o -name "*.jsonl" \) -exec \
+    sed -i'' -e "s|$ORIGINAL_PATH|$TARGET_PATH|g" {} +
+fi
 
 # Copy project history (merge, don't overwrite existing)
 if [ -d "$DEST" ]; then
@@ -111,7 +119,7 @@ else
   cp -a "$IMPORT_DIR/project-history/"* "$DEST/"
 fi
 
-# Copy session files
+# Copy session files (with path rewriting already applied)
 if [ -d "$IMPORT_DIR/sessions" ] && [ "$(ls -A "$IMPORT_DIR/sessions/" 2>/dev/null)" ]; then
   cp -n "$IMPORT_DIR/sessions/"* "$HOME/.claude/sessions/" 2>/dev/null || true
 fi
