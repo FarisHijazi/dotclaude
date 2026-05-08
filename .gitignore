@@ -20,5 +20,6 @@
 /tasks/
 /node_modules/
 /plugins/marketplaces/
-CLAUDE.local.md
+**/*.local.*
 .env
+.claude.json

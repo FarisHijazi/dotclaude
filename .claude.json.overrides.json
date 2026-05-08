@@ -1,0 +1,17 @@
+{
+  "agentPushNotifEnabled": true,
+  "autoUpdates": false,
+  "autoUpdatesProtectedForNative": true,
+  "claudeInChromeDefaultEnabled": true,
+  "companionMuted": true,
+  "copyFullResponse": true,
+  "deepLinkTerminal": "Terminal",
+  "externalEditorContext": true,
+  "fallbackAvailableWarningThreshold": 0.5,
+  "hasOpusPlanDefault": false,
+  "isQualifiedForDataSharing": false,
+  "penguinModeOrgEnabled": true,
+  "preferredNotifChannel": "terminal_bell",
+  "remoteControlAtStartup": true,
+  "showSpinnerTree": false
+}

@@ -5,9 +5,7 @@
   },
   "permissions": {
     "allow": [
-      "Bash(claude plugin:*)",
-      "Read(//private/tmp/work-skills-check/**)",
-      "Read(//private/tmp/work-skills-check/work-arabic/**)"
+      "Bash(claude plugin:*)"
     ],
     "defaultMode": "auto"
   },
