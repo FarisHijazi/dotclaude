@@ -16,6 +16,14 @@ read @CLAUDE.local.md for private instructions
 - Document whatever you do before you stop coding; write it in `./docs/devlog/claude_{DATETIME}-{DESCRIPTION}.md`. You might also want to read the devlog folder to see if any other devs left any important notes.
 - Always update `CLAUDE.md` before every git commit. If you are in a monorepo or a folder with multiple projects, or even sub- or sub-sub-projects, make a `CLAUDE.md` that is separate for the root and separate for each project as seen fit.
 
+### Documentation rules
+
+- IMPORTANT: Any time you write or update, make sure this information doesn't already exist elsewhere, do NOT be redundant, be explicit and useful and not overly verbose.
+- Any time you write info in file B that depends on another file A, then make sure you reference the file A in the file B and link to it using @filename.md.
+- ALWAYS: double check any information you document by validating and verifying and information you write, and if it conflicts or overlaps with other info documented or undocumented, then also test those as well! leave no room for being wrong or being confused!
+- Any time that a dependant file info changes then be sure to test and reverify and retest and update all dependant files to reflect the changes.
+- Any time a file is updated, if an upstream or downstream dependency is affected, then be sure to test and reverify and retest and update all dependant files to reflect the changes.
+
 # Development Workflow
 
 - Think step-by-step before coding; you may write 2–3 reasoning paragraphs outlining your approach.
