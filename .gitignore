@@ -24,4 +24,7 @@
 .env
 .claude.json
 /plugins/known_marketplaces.json
+/get-shit-done/
+/sessions/
+/project-config.json
 
