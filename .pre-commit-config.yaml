@@ -1,31 +1,87 @@
 # See https://pre-commit.com for more information
-# Run `pre-commit autoupdate` to update hook versions
+# Install: uvx pre-commit install
+# Run all: uvx pre-commit run --all-files
+# Update:  uvx pre-commit autoupdate
 
-exclude: /templates/
+exclude: /templates/|node_modules/|\.git/
+
 repos:
-  # General pre-commit hooks
+  # ── General hygiene ────────────────────────────────────────────────
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
-        files: \.(py|sh|md|yaml|yml)$
+        files: \.(py|sh|js|ts|md|yaml|yml|json)$
       - id: check-yaml
+        args: [--allow-multiple-documents]
       - id: check-toml
       - id: check-json
       - id: check-added-large-files
-        args: ['--maxkb=1000']
+        args: ['--maxkb=500']
       - id: check-merge-conflict
       - id: check-case-conflict
+      - id: check-symlinks
+      - id: check-executables-have-shebangs
       - id: detect-private-key
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: no-commit-to-branch
+        args: [--branch, main]
 
+  # ── Secrets / credentials ──────────────────────────────────────────
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
 
-  # Spell checker
+  # ── Shell ──────────────────────────────────────────────────────────
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+      - id: shellcheck
+        args: [--severity=warning]
+        files: \.(sh|bash)$
+        exclude: shell-snapshots/
+
+  - repo: https://github.com/scop/pre-commit-shfmt
+    rev: v3.13.1-1
+    hooks:
+      - id: shfmt
+        args: [-i, '2', -ci]
+        files: \.(sh|bash)$
+        exclude: shell-snapshots/
+
+  # ── YAML ───────────────────────────────────────────────────────────
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.38.0
+    hooks:
+      - id: yamllint
+        args: [-d, '{extends: relaxed, rules: {line-length: {max: 200}}}']
+
+  # ── Markdown ───────────────────────────────────────────────────────
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.48.0
+    hooks:
+      - id: markdownlint
+        args:
+          - --disable
+          - MD013  # line length
+          - MD033  # inline HTML
+          - MD041  # first line heading
+          - MD024  # duplicate headings
+          - MD036  # emphasis as heading
+          - --
+
+  # ── Spell checker ──────────────────────────────────────────────────
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.4.1
+    rev: v2.4.2
     hooks:
       - id: codespell
-        args: [--skip, "*.lock,*.json,plugins/"]
+        args:
+          - --skip=*.lock,*.json,plugins/,node_modules/,*.db,bun.lock
+          - --ignore-words-list=iam,ser,nd,te
+
 ci:
   autofix_commit_msg: |
     [pre-commit.ci] auto fixes from pre-commit hooks
