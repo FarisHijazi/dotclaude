@@ -23,3 +23,5 @@
 **/*.local.*
 .env
 .claude.json
+/plugins/known_marketplaces.json
+
