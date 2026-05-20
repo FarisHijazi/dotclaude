@@ -1,5 +1,6 @@
 ---
-description: Kill the current Claude session
+name: terminate
+description: Immediately terminate the current Claude Code session
 allowed-tools:
   - Bash
 ---
