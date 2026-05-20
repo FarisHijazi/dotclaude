@@ -1,3 +1,11 @@
 
 Todo:
   [ ] split CLAUDE.md into skills (at least the documentation skill) @created(26-05-08 22:20)
+  [ ] /avoid-rework create a new slash command/skill that searches for similar convos in other repos or in the same folder just to make sure that we're not redoing work that's already been done before. it should go like this: 1. parse all histories 2. filter which repos to use (configurable, default=all) 3. fuzzy search/grep multiple search queries across them 4. claude should summarize and mention that these relevant histories to this task were found, it should bring to us not just "related work" but most importantly overlapping work that will prevent us from starting over or duplicating work/code/efforts
+  [ ] ccinbox
+  [ ] /copy-prompts
+  [ ] /trim-diff "is this really the simplest and most elegant way it could be implemented? does the git diff really have to be this large? you're a 10+Years of exp senior solution architect and software engineer, ultrathink to get the best and most elegant solution, make no mistakes! and if you tested before and then made changes, you must test again"
+  [ ] optimize notifications pushing through claude->TMUX->SSH->terminal->VSCode... see if you can really get the real deal, maybe even push native macos notifications that when clicked will navigate all the way to the tmux window with CC
+  [ ] add something that will roast my productivity (prompt or post-hook) that mentions things like "The honest read: you're noodling on the API because the feature was easy to build and you have leftover energy. Spend it on something else."
+  [ ] @high @20h MAJOR INVESTMENT: something to constantly capture screenshots and monitor usage and then give me analytics + roast my productivity + catch me when I'm doing something wrong
+
