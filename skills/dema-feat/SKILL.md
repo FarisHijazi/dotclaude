@@ -10,6 +10,7 @@ You must implement the the user's requested feature
 3. planning and development
 4. be sure to test this comprehensively and run /dema-remote-e2e (@~/.claude/skills/dema-remote-e2e/SKILL.md)
 5. Create a PR and review the PR comments
+6. don't forget to wait a few minutes until the PR review bot postst it's findings, then address any valid PR comments and commit and push to the PR. then wait again for the PR review claude code bot. Repeat step 6 until there's no longer any more valid comments (you don't need to listen to PR comments that are invalid)
 
 ultrathink and make no mistakes
 
