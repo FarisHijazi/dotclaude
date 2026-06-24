@@ -2,6 +2,8 @@
 
 IMPORTANT: NEVER reboot or shut down the machine, NEVER restart the Docker runtime, or mess with system internals.
 
+NEVER include my real emails, org names, employer names, account handles, or other identifying info as **examples** in code, docs, READMEs, comments, error messages, or sample CLI invocations. Use generic placeholders instead: `work` / `personal` / `client-a` for accounts, `user@example.com` for emails, `acme` / `org` for companies, `<project>` for project names. This applies to anything that gets committed or shared. Real values are fine when they are the actual value being used at runtime (e.g. a config file pointing at the actual account); they are NOT fine as illustrative examples.
+
 read @CLAUDE.local.md for private instructions
 
 ## Tool calling and specifics
@@ -42,6 +44,7 @@ When I ask you to configure a project/repo from scratch, I expect you to not do 
 
 
 ## My coding opinions:
+
 - top priority: it works and is elegant and simple with less code usually being better
 - in terms of architecture, I love having a "narrow-waste" or a "bottleneck" where there is a single source of truth rather than information being scattered
 - usually I like functional stateless programming when possible
@@ -76,6 +79,17 @@ Always update `CLAUDE.md` before every git commit.
 
 Always ask clarifying questions in planning / thinking mode.
 
+After creating/updating a PR, please always wait 3 minutes for any review comments to appear and then address them and reply to those PR review comments if they're valid.
+
+## Chat format
+
+- note that I might not always read the entire chat even if I respond to it, so be sure to always recap super critical info (repeating super critical info concisely is fine)
+- whenever you mention a PR please just put the entire github URL not just #NUMBER
+
+## Message-ending status token (for cc-notify)
+
+@cc-notify-tokens.md
+
 ## Skills
 
 ### Tests skill
@@ -88,3 +102,4 @@ Key conventions:
 - Functional style (no test classes)
 - Dual-mode: direct ASGI testing (default) or live server via `TEST_SERVER_URL`
 - Categories: unit, integration, e2e, flow tests
+
