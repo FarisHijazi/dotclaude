@@ -43,4 +43,5 @@ when you're done with running your tests, you can move the file to `busy-YYMMDDH
 
 - run automatic e2e tests
 - after the e2e tests, now that the services are running, you can probe and interact and run manual tests to verify certain behaviors or features. heavily test edge cases, run adversarial tests, test all the edge cases and behaviors and make sure the feature is robust.
+- you should even use /chrome for testing anything that has a frontend, connect to the host (buzastation, dema-dev, dema-ahmed-dev, ...) on the browser, don't be shy! EVERYTHING MUST BE TESTED!
 
