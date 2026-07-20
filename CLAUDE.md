@@ -4,7 +4,7 @@ IMPORTANT: NEVER reboot or shut down the machine, NEVER restart the Docker runti
 
 NEVER include my real emails, org names, employer names, account handles, or other identifying info as **examples** in code, docs, READMEs, comments, error messages, or sample CLI invocations. Use generic placeholders instead: `work` / `personal` / `client-a` for accounts, `user@example.com` for emails, `acme` / `org` for companies, `<project>` for project names. This applies to anything that gets committed or shared. Real values are fine when they are the actual value being used at runtime (e.g. a config file pointing at the actual account); they are NOT fine as illustrative examples.
 
-read @CLAUDE.local.md for private instructions
+read @/Users/farishijazi/.claude/CLAUDE.local.md for private instructions
 
 ## Tool calling and specifics
 
@@ -33,6 +33,7 @@ read @CLAUDE.local.md for private instructions
 - Test after every meaningful change.
 - Focus on complete core functionality first (zero TODOs/placeholders).
 - Optimize only after achieving core functionality.
+- (worktree should be in /<original repo path>/worktrees/<your new worktree>/)
 
 ## Coding practices
 
@@ -89,6 +90,10 @@ After creating/updating a PR, please always wait 3 minutes for any review commen
 ## Message-ending status token (for cc-notify)
 
 @cc-notify-tokens.md
+
+## for using /chrome
+
+you must always see /Users/farishijazi/.claude/chrome-profiles.json for knowing which profile to use
 
 ## Skills
 

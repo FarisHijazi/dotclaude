@@ -9,7 +9,7 @@
     ],
     "defaultMode": "auto"
   },
-  "model": "claude-opus-4-6",
+  "model": "opus",
   "hooks": {
     "SessionStart": [
       {
@@ -112,6 +112,24 @@
             "timeout": 3
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CLAUDE_PLUGIN_ROOT=\"/Users/farishijazi/projects/claude-voice-handsfree/plugins/handsfree\" bash \"/Users/farishijazi/projects/claude-voice-handsfree/plugins/handsfree/scripts/stop-hook.sh\"",
+            "timeout": 60
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/scripts/cc-export-convo.py\"",
+            "timeout": 15
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
@@ -126,13 +144,20 @@
       }
     ]
   },
+  "worktree": {
+    "baseRef": "fresh"
+  },
   "statusLine": {
     "type": "command",
     "command": "node \"$HOME/.claude/hooks/gsd-statusline.js\""
   },
   "enabledPlugins": {
     "swift-lsp@claude-plugins-official": true,
-    "basecamp@37signals": true
+    "basecamp@37signals": true,
+    "hello-world@farishijazi-plugins": false,
+    "frontend-design@claude-plugins-official": true,
+    "cc-notify@farishijazi-plugins": true,
+    "chrome-devtools-mcp@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "37signals": {
@@ -140,13 +165,25 @@
         "source": "github",
         "repo": "basecamp/claude-plugins"
       }
+    },
+    "farishijazi-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "FarisHijazi/claude-plugins"
+      },
+      "autoUpdate": true
     }
   },
   "alwaysThinkingEnabled": true,
   "effortLevel": "high",
+  "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
+  "theme": "auto",
+  "editorMode": "normal",
+  "verbose": false,
   "preferredNotifChannel": "terminal_bell",
   "remoteControlAtStartup": true,
+  "inputNeededNotifEnabled": true,
   "agentPushNotifEnabled": true,
   "skipAutoPermissionPrompt": true,
   "voiceEnabled": true
