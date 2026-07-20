@@ -28,3 +28,6 @@
 /sessions/
 /project-config.json
 /image-cache/
+/chrome/
+/channels/inbox/sessions/
+/tmp/

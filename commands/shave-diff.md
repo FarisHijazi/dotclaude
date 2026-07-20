@@ -11,5 +11,4 @@ Make the changes easy to read for a new reader and also for a current dev reader
 ultrathink step by step and make no mistakes
 
 use git extensively for reading and comparing
-do not commit when done
 
