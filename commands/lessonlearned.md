@@ -1,6 +1,6 @@
 ---
 argument-hint: <new_path>
-description: lessons learned: It's time to summarize to the user what you did and teach them so that they can be independant and learn from you and from what you learned.
+description: lessons learned: It's time to summarize to the user what you did and teach them so that they can be independent and learn from you and from what you learned.
 ---
 
 ## Task
@@ -31,4 +31,3 @@ concisely teach the user what they could do next time without needing Claude Cod
 ```
 
 After that, ask the user if they want to be quizzed on the concepts, and then start an interactive quiz
-

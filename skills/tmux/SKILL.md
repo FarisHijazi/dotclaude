@@ -102,6 +102,13 @@ Notes:
 
 ## 2. Read & search pane text (incl. off-screen scrollback)
 
+### read `.cc-convos/*.md` if available
+
+Some most claude code sessions will have a plugin that immediately saves the entire chat history as .md, if you find the `<claude-code-session-path>/.cc-convos/<session-name>-<id>.md`
+This is useful for reading the entire history but if you just want what happened last, you can use the native `tmux capture-pange ...`
+
+### Native `tmux capture-pane ...`
+
 `capture-pane -p` defaults to the **visible** region only. To reach text that
 has scrolled off the top, add `-S` (start line) / `-E` (end line). `-S -` means
 "from the very beginning of the scrollback buffer."
