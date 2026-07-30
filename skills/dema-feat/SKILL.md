@@ -6,7 +6,7 @@ description: instructions for setting up and developing and testing a new featur
 You must implement the the user's requested feature
 
 1. make sure to git pull and start from a fresh clean updated master branch
-2. then create a new git worktree and work there (worktree should be in /<original repo path>/worktrees/<your new worktree>/)
+2. then create a new git worktree and work there (worktree should be in /<original repo path>/worktrees/<your new worktree>/) and install pre-commit hooks (uvx)
 3. planning and development
 4. be sure to test this comprehensively and run /dema-remote-e2e (read @/Users/farishijazi/.claude/skills/dema-remote-e2e/SKILL.md), even use /chrome for testing if needed
 5. Create a PR and review the PR comments

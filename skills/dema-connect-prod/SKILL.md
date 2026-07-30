@@ -69,6 +69,12 @@ self-revert), and the traps (clock drift, Loki line cap, planner hangs).
 `tools/` in this skill dir has tested wrappers for prod log/telemetry digging — prefer them over
 ad-hoc curl/psql (they bake in read-only sessions, statement timeouts, and JSON pretty-printing):
 
+- `tools/site-state.sh [loki_window_mins]` — **fast site-health snapshot: run this FIRST every
+  monitoring tick.** One shot → grid_state (sovereign/series, setpoint, override, emergency, +`age_s`
+  freshness) + fleet_state (meter/max/min/target MW) + the grid-gateway over-max/error count. Small,
+  time-bounded, retries once on a dropped DB connection. Interpretation cheatsheet (awake/asleep/stuck,
+  stale-latch, sovereign-vs-series) in the script header + `tools/README.md`. The recurring incident it
+  catches is the over-max wake bug — see the `prod-nightly-wake-setpoint-over-max` memory.
 - `tools/loki-query.sh '<logql>' <start> <end> [limit] [--raw]` — time-sorted log lines from Loki
   (`http://10.100.20.15:3100`; apps: `control_service`, `grid-gateway`, `modbus_server`)
 - `tools/loki-count.sh '<substr or logql>' <start> <end> [step]` — per-bucket counts (beats the 5000-line cap)
@@ -95,7 +101,26 @@ host `.env`, pulls from ghcr, and recreates the container. So:
   (stdin; there is no `--body-file`).
 - Apply: `gh run rerun <last CI/CD run id> --repo DEMAEnergy/<repo>` (vars are read at run time).
 
+> ⚠️ **Do NOT quote repo `CLAUDE.md` env tables as live values — they are CODE DEFAULTS and DIFFER
+> from prod.** Two real sources, in order of authority:
+> 1. **The running container's env = the ULTIMATE truth** (what the process actually loaded; may lag
+>    a not-yet-redeployed `ENV_FILE`):
+>    `ssh dema-control-service 'docker exec control-service-control-service-1 printenv | grep -i <VAR>'`
+>    (control-service container name is `control-service-control-service-1`, NOT `control-service`.)
+>    Do the same on each host (`dema-grid-gateway`, `dema-dema-ops`, …) for that service's container.
+> 2. **The GitHub Environment `production-ibri-1` → `ENV_FILE` variable** = the desired/deployed
+>    config (`gh api … ENV_FILE | grep`; needs the DEMAEnergy `gh` account — `gh auth switch` if 404).
+>
+> Confirmed LIVE in the control-service container (2026-07-21) where docs differ / matter:
+> `FLEET_TARGET_RECONCILE_TOLERANCE_W=50000` (doc default 25000),
+> `FLEET_SETPOINT_COOLDOWN_SECONDS=60` (doc default 10), `FLEET_TARGET_RECONCILE_INTERVAL=60`,
+> `FLEET_DEFAULT_RAMP_RATE=83333.33` W/s (=5 MW/min), `FLEET_MAX_RAMP_RATE=500000`,
+> `FLEET_DISPATCH_SECONDS=0`, `FLEET_VCB_SMOOTHING_WINDOW=15`, `FLEET_BREAKER_SMOOTHING_WINDOW=1`,
+> `FLEET_TARGET_RECONCILE_STRATEGY=min_breaker_changes`.
+
 ## Mistakes I made (don't repeat)
+- Quoted the CLAUDE.md *default* (`FLEET_TARGET_RECONCILE_TOLERANCE_W=25000`) as the live prod value
+  during an investigation — prod is 50000. Always read `ENV_FILE` for real values (see box above).
 - Edited the host `.env` directly to enable the poller — wrong; reverted. Use `ENV_FILE` + rerun.
 - Tried `docker compose up` on the host to apply env — fails (no ghcr login).
 

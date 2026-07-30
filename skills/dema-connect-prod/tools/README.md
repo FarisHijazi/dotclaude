@@ -5,12 +5,47 @@ Battle-tested during the 2026-07-04 power-curve investigation
 
 | Tool | What it does |
 |---|---|
+| `site-state.sh [loki_window_mins]` | **fast site-health snapshot** — grid_state + fleet_state + over-max detector in one shot (the every-tick monitoring sweep). See below. |
 | `loki-query.sh '<logql>' <start> <end> [limit] [--raw]` | time-sorted log lines from prod Loki |
 | `loki-count.sh '<substr or logql>' <start> <end> [step]` | per-bucket line counts (beats the 5000-line cap) |
 | `psql-telemetry.sh -c "..."` | read-only psql → telemetry TimescaleDB (write-blocked, 120s timeout) |
 | `psql-control.sh -c "..."` | read-only psql → control config DB (write-blocked, 60s timeout) |
 
 All timestamps are UTC. Site local time = UTC+4 (Asia/Muscat); Grafana in a Saudi browser shows UTC+3.
+
+## Fast site-health snapshot — `site-state.sh`
+
+The one command to run each monitoring tick. Prints the current site operating point and
+flags the known failure modes, from three small time-bounded reads (each retries once — the
+telemetry DB drops connections under load):
+
+```
+./tools/site-state.sh          # gateway-error window = last 30 min
+./tools/site-state.sh 60       # last 60 min
+```
+
+1. **grid_state** (`device_id=grid_actor`) — `operating_mode` (sovereign vs series), `dispatch_authority`,
+   `power_setpoint_mw`, `etp_remote_override{,_mw}`, `system_state`, `emergency_ffr_type`, grid Hz — **with `age_s`**.
+2. **fleet_state** (`device_id=fleet_controller`) — `site_total_meter_wattage` / `max_power` / `min_power` /
+   `site_total_target_wattage`, in MW.
+3. **grid-gateway** ERROR / `exceeds controller max` / latch / freeze count (the over-max-wake-bug detector),
+   scoped `{application="grid-gateway"}` so it isn't swamped by control-service's log-drain backlog.
+
+**Read the result** (full cheatsheet in the script header):
+
+| Signal | Meaning |
+|---|---|
+| `operating_mode=local` | **SOVEREIGN** (ETP bypassed) — dodges the over-max bug, but ignores OETC curtailment (compliance exposure). |
+| `operating_mode=remote` | **SERIES** (ETP authoritative) — honors OETC, but a schedule setpoint **above** live `max_power` is rejected → stuck/self-wake bug. (During a series *sleep*, mode flips local↔remote every ~5min = the sleep re-propose — normal.) |
+| meter ≈ target, `max_power` > meter | **awake**, healthy separated envelope. |
+| meter ≈ `min_power` ≈ target (~1-2 MW) | **asleep** on the cooling floor (still healthy: `max_power` ≫ meter). |
+| `max_power == min_power == meter` and/or gateway `exceeds controller max` | **STUCK / collapsed envelope = the over-max bug**. Site open-loop. See `prod-nightly-wake-setpoint-over-max` memory. |
+| `etp_remote_override=True`, `_mw` **frozen** across minutes | **stale latch** (inert under sovereign), *not* a live OETC dispatch. A **moving** `_mw` = real remote curtailment. |
+| `age_s` large / no rows | **telemetry stale** — suspect the telemetry consumer, not the fleet. |
+
+The over-max wake bug (both wakes daily target a setpoint that can exceed the live site max) is
+the recurring incident this snapshot exists to catch — full write-up in the
+`prod-nightly-wake-setpoint-over-max` project memory.
 
 ## Loki (http://10.100.20.15:3100)
 
