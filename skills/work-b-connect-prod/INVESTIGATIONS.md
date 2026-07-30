@@ -93,6 +93,29 @@ row 2) and the telemetry trace for its serial; anchor its dashboard clock first.
 - Miner dashboards read Power ~5–10% above `miner_state.actual_wattage` (different
   measurement point), and 24 h views smooth a short sleep into a shallow "dip".
 
+## "Is a dashboard graph fluctuating for real, or is it DB/Grafana bucketing?" (2026-07-23)
+
+Answer it in two cheap steps — do NOT theorize about aggregation:
+1. **Pull the RAW telemetry** (one row per sample, `ORDER BY timestamp`, **no `time_bucket`**)
+   over a few minutes. If the raw 5 s samples themselves zigzag, it's real stored data —
+   Grafana is faithful, bucketing is exonerated. (It was real every time so far.)
+2. **Then ask: is the wobbling field COMMANDED/believed or MEASURED?** Many
+   `fleet_controller` fields are believed values, not meters, and they *ripple during ramps*
+   while real power is smooth:
+   - `supervisor_allocations.<brk>_allocation` = `total_power_setpoint_controllable` = **Σ per-miner
+     setpoint reconciled from `/mode` each ~5 s cycle** (a believed setpoint sum, republished every
+     monitoring loop — NOT a meter). Same for `fleet_state.total_power_setpoint` /
+     `site_total_target_wattage`.
+   - During a **staggered ramp** (`set_fleet_power(W)` with `FLEET_DEFAULT_RAMP_RATE` / `dispatch_seconds`)
+     this value climbs as a discrete staircase (~1 setpoint-quantum per breaker); sampling that
+     staircase every 5 s **aliases** into a ±1-quantum sawtooth (seen: ±13.7 kW, up-2/down-1,
+     synchronized across all breakers under `equal` strategy). It is a display artifact, not a
+     control problem or a real power swing.
+   - **Ground truth for actual draw = `breaker_reading.total_active_power_kw`** (per-supervisor
+     ADL400N Modbus) + the site meter. Cross-check the rippling believed value against it: smooth
+     Modbus + sawtooth allocation ⇒ cosmetic ramp ripple. "Fix" is a Grafana moving-average or
+     repointing the panel to the Modbus field — nothing to change in the controller.
+
 ## Traps that cost real time (all hit on 2026-07-04/05)
 
 - Loki returns max **5000 lines** — a flood (token-rejected wave) silently truncates your

@@ -1,0 +1,29 @@
+{
+  "_comment": "Loki datasource (uid bf28onennottsf) derived-fields config. Makes request_id / supervisor_id / miner_ip CLICKABLE in every log line -> one-click drill-down. The datasource currently has jsonData={\"pdcInjected\":false} and ZERO derived fields; this is the single highest-leverage observability change. Apply by PUT /api/datasources/uid/bf28onennottsf with the full datasource body having jsonData.derivedFields set to the array below (a PROD Grafana write — do only with explicit go-ahead).",
+  "derivedFields": [
+    {
+      "name": "request_id",
+      "matcherType": "regex",
+      "matcherRegex": "\"request_id\":\\s*\"((?:sfp|sac|wac|sup)-[a-z0-9]+)\"",
+      "url": "{application=\"control_service\"} |= `${__value.raw}`",
+      "urlDisplayLabel": "→ whole dispatch",
+      "datasourceUid": "bf28onennottsf"
+    },
+    {
+      "name": "supervisor_id",
+      "matcherType": "regex",
+      "matcherRegex": "\"supervisor_id\":\\s*\"(container_[0-9]+_breaker_[0-9]+)\"",
+      "url": "{module=~\"supervisor|supervisor_recovery|breaker\"} |= `${__value.raw}`",
+      "urlDisplayLabel": "→ this breaker",
+      "datasourceUid": "bf28onennottsf"
+    },
+    {
+      "name": "miner_ip",
+      "matcherType": "regex",
+      "matcherRegex": "\"miner_ip\":\\s*\"([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)\"",
+      "url": "{application=\"control_service\"} |= `${__value.raw}`",
+      "urlDisplayLabel": "→ this miner",
+      "datasourceUid": "bf28onennottsf"
+    }
+  ]
+}
