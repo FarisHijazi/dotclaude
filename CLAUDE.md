@@ -34,6 +34,7 @@ read @/Users/farishijazi/.claude/CLAUDE.local.md for private instructions
 - Focus on complete core functionality first (zero TODOs/placeholders).
 - Optimize only after achieving core functionality.
 - (worktree should be in /<original repo path>/worktrees/<your new worktree>/)
+- when the user asks for multiple things that can be run in parallel, then please do use subagents/workflows/ultracode and run them in parallel, if a task is easy and will likely not result in a mistake then use Sonnet as the model for the subagents.
 
 ## Coding practices
 
