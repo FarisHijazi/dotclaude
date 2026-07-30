@@ -108,6 +108,15 @@
         "hooks": [
           {
             "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/auto-compact-continue.sh\"",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
             "command": "node \"$HOME/.claude/hooks/tmux-color-sync.js\"",
             "timeout": 3
           }
@@ -128,6 +137,17 @@
             "type": "command",
             "command": "python3 \"$HOME/.claude/scripts/cc-export-convo.py\"",
             "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/auto-compact-continue.sh\"",
+            "timeout": 5
           }
         ]
       }
@@ -157,7 +177,8 @@
     "hello-world@farishijazi-plugins": false,
     "frontend-design@claude-plugins-official": true,
     "cc-notify@farishijazi-plugins": true,
-    "chrome-devtools-mcp@claude-plugins-official": true
+    "chrome-devtools-mcp@claude-plugins-official": true,
+    "cloudflare@cloudflare": true
   },
   "extraKnownMarketplaces": {
     "37signals": {
@@ -172,12 +193,18 @@
         "repo": "FarisHijazi/claude-plugins"
       },
       "autoUpdate": true
+    },
+    "cloudflare": {
+      "source": {
+        "source": "github",
+        "repo": "cloudflare/skills"
+      }
     }
   },
   "alwaysThinkingEnabled": true,
-  "effortLevel": "high",
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
+  "skipWorkflowUsageWarning": true,
   "theme": "auto",
   "editorMode": "normal",
   "verbose": false,

@@ -12,7 +12,16 @@ cd ~/.claude && \
 git stash -m 'stashing changes before dotclaude git clone'
 ```
 
-## TODO
 
-- [ ] TODO: add ability to fork sessions within tmux
-- [ ] TODO: search for existing tmux+cc
+## Development
+
+
+## This repo (dotclaude) tracking model
+
+`.gitignore` is a **whitelist**: `/*` ignores every top-level entry, then `!/...`
+re-includes only owned surfaces (`agents/`, `channels/`, `commands/`, `docs/`,
+`hooks/`, `memory/`, `scripts/`, `skills/`, plus a few root files). Carve-outs
+keep `get-shit-done/`, `skills/gsd-*`, `skills/handsfree`, `skills/gws/README.md`,
+`skills/work-it-prep/`, `channels/inbox/`, and `*.local.*` out of the public
+repo. See @docs/devlog/claude_2026-07-29-whitelist-gitignore.md.
+
