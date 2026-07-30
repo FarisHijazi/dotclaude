@@ -1,33 +1,49 @@
-/.vscode
-/debug/
-/file-history/
-/ide/
-/projects/
-/todos/
-/statsig/
-/shell-snapshots/
-/history.jsonl
-/stats-cache.json
-/.credentials.json
-*.db
-**/cache/**
-**/.DS_Store
-/config.json
-/telemetry/
+# Whitelist model: everything is ignored, then re-included below.
+# This repo is PUBLIC (github.com/FarisHijazi/dotclaude) — never re-include
+# anything with credentials, real emails, org names, or machine-local state.
 
-**/paste-cache/**
-/backups/
-/tasks/
-/node_modules/
-/plugins/marketplaces/
+# --- 1. Ignore every top-level entry --------------------------------------
+/*
+
+
+# --- 2. Files we own ------------------------------------------------------
+!/.gitignore
+!/.pre-commit-config.yaml
+!/.claude.json.overrides.json
+!/AGENTS.md
+!/CLAUDE.md
+!/README.md
+!/TODO.todo
+!/cc-notify-tokens.md
+!/settings.json
+!/package.json
+!/bun.lock
+
+# --- 3. Directories we own ------------------------------------------------
+!/agents/
+!/channels/
+!/commands/
+!/docs/
+!/hooks/
+!/memory/
+!/scripts/
+!/skills/
+
+# --- 4. Carve-outs inside the directories above ---------------------------
+# GSD framework: installed by its updater, not authored here.
+/get-shit-done/
+/gsd-file-manifest.json
+/skills/gsd-*
+# Symlink into a private local project — never track.
+/skills/handsfree
+# Local account-setup notes (real profile names); public skill is SKILL.md only.
+/skills/gws/README.md
+# Runtime channel state.
+/channels/inbox/
+# Private overrides: CLAUDE.local.md, settings.local.json, .env.local, ...
 **/*.local.*
 .env
-.claude.json
-/plugins/known_marketplaces.json
-/get-shit-done/
-/sessions/
-/project-config.json
-/image-cache/
-/chrome/
-/channels/inbox/sessions/
-/tmp/
+**/node_modules/
+**/cache/
+**/paste-cache/
+**/.DS_Store
