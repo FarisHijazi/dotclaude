@@ -20,6 +20,14 @@ send() {
   tmux send-keys -t "$sess" Enter
 }
 
+# mtime in epoch seconds — GNU stat (Linux) then BSD stat (macOS). 0 if neither works.
+mtime() {
+  local t
+  t=$(stat -c %Y "$1" 2>/dev/null) || t=$(stat -f %m "$1" 2>/dev/null) || t=0
+  [[ "$t" =~ ^[0-9]+$ ]] || t=0
+  printf '%s' "$t"
+}
+
 pending="${TMPDIR:-/tmp}/cc-ac-pending-$sid"
 
 case "$event" in
@@ -32,7 +40,7 @@ case "$event" in
     [[ -z "$used" || "${used%%.*}" -lt "${thr%%.*}" ]] && exit 0
     # Only skip if a compact we triggered is still in flight (<2 min). Stale pending → retry.
     if [[ -e "$pending" ]]; then
-      age=$(( $(date +%s) - $(stat -f %m "$pending" 2>/dev/null || echo 0) ))
+      age=$(( $(date +%s) - $(mtime "$pending") ))
       [[ "$age" -lt 120 ]] && exit 0
       rm -f "$pending"
     fi
