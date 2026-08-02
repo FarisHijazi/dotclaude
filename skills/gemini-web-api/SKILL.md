@@ -1,0 +1,393 @@
+---
+name: gemini-web-api
+description: "Generate Veo / Veo3 VIDEO, generate IMAGES, or run Gemini text prompts using the user's own logged-in Google account — no API key, no billing, no credits. Local OpenAI-compatible API run via uvx from git (chat, true streaming, tool calling, vision, images, Veo video), with Google multi-login profile (u/N) switching for daily media quotas. USE THIS whenever Veo/Veo3 video, Gemini image generation, or a Gemini prompt is wanted — including AI-influencer/ad/marketing clip work — and ALWAYS BEFORE reaching for GEMINI_API_KEY, the google-generativeai SDK, or the gemini_webapi library directly (a plain GEMINI_API_KEY has NO Veo models on the free tier, and using gemini_webapi directly fails with missing cookies). Cookies are read automatically from local Chrome — NEVER ask the user to paste __Secure-1PSID cookies."
+---
+
+# gemini-web-api
+
+Talk to **Gemini using the user's logged-in Google account** — no API key, no
+billing — through a local OpenAI-compatible server.
+Source: <https://github.com/FarisHijazi/gemini-web-api>
+
+Everything runs via `uvx` directly from git. **There is no install step and no
+files to copy** — the commands below are self-contained.
+
+```bash
+GW="uvx --from git+https://github.com/FarisHijazi/gemini-web-api"
+```
+
+First invocation builds from git (~60s); afterwards uvx caches it (~4s/call).
+
+**Requires:** `uv`, and **Chrome logged in to gemini.google.com** (cookies are
+read from the local Chrome profile).
+
+## 1. The server runs automatically
+
+A **systemd user service** keeps it running on `:8100` — it starts at
+login/boot, restarts on failure, and (with lingering) survives logout. It is
+user-wide, so it works from any directory. **Normally you do not start anything.**
+
+```bash
+curl -s http://localhost:8100/health      # {"status":"ok"} -> ready, just use it
+```
+
+Manage it:
+```bash
+systemctl --user status  gemini-web-api
+systemctl --user restart gemini-web-api
+journalctl --user -u gemini-web-api -n 40 --no-pager
+```
+
+Settings live in `~/.config/gemini-web-api/env` (`GEMINI_AUTHUSER`,
+`GEMINI_API_PORT`, `GEMINI_CDP_URL`, `GEMINI_API_KEY`) — edit, then
+`systemctl --user restart gemini-web-api`.
+
+⚠️ **If the service is installed, never hand-start a second server** (`nohup … &`)
+and never `fuser -k 8100/tcp` to "restart" it — your server grabs the port, the
+service then crash-loops trying to bind it (observed: 61 restarts). To change
+anything, edit the env file and restart the *service*:
+
+```bash
+sed -i 's/^GEMINI_AUTHUSER=.*/GEMINI_AUTHUSER=2/' ~/.config/gemini-web-api/env
+systemctl --user restart gemini-web-api
+until curl -sf -m2 http://localhost:8100/health >/dev/null; do sleep 2; done
+```
+
+Only if the service is **not** installed (`systemctl --user status gemini-web-api`
+→ not-found), run it directly:
+```bash
+GEMINI_AUTHUSER=1 nohup $GW gemini-web-api >/tmp/gemini-web-api.log 2>&1 &
+until curl -sf -m2 http://localhost:8100/health >/dev/null; do sleep 2; done
+```
+
+<details><summary>Install the always-on service (one time)</summary>
+
+```bash
+mkdir -p ~/.config/systemd/user ~/.config/gemini-web-api
+printf 'GEMINI_AUTHUSER=1\nGEMINI_API_PORT=8100\n' > ~/.config/gemini-web-api/env
+cat > ~/.config/systemd/user/gemini-web-api.service <<'UNIT'
+[Unit]
+Description=gemini-web-api — OpenAI-compatible API over gemini.google.com
+After=network-online.target
+[Service]
+Type=simple
+EnvironmentFile=%h/.config/gemini-web-api/env
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=%h/.local/bin/uvx --from git+https://github.com/FarisHijazi/gemini-web-api gemini-web-api
+Restart=always
+RestartSec=10
+TimeoutStartSec=180
+[Install]
+WantedBy=default.target
+UNIT
+systemctl --user daemon-reload
+systemctl --user enable --now gemini-web-api
+loginctl enable-linger "$USER"   # keep running after logout
+```
+</details>
+
+## 2. Chat / models
+
+```bash
+$GW gemini-web-api-cli chat "explain black holes in one sentence"
+$GW gemini-web-api-cli chat "write a haiku about the sea" --model gemini-3-pro
+$GW gemini-web-api-cli chat "count to 20 with notes" --stream   # real token streaming
+$GW gemini-web-api-cli models
+```
+
+Models: `gemini-3-pro`, `gemini-3-flash`, `gemini-3-flash-thinking` (+ `-plus` /
+`-advanced` tiers). `gpt-4*` / `gpt-3.5-turbo` aliases map onto them.
+
+Streaming is **true** token streaming (upstream deltas forwarded live).
+
+## 3. As an OpenAI endpoint
+
+Point any OpenAI SDK / agent tool at `http://localhost:8100/v1` with any
+placeholder key (auth is off unless `GEMINI_API_KEY` is set):
+
+```python
+from openai import OpenAI
+client = OpenAI(base_url="http://localhost:8100/v1", api_key="not-needed")
+client.chat.completions.create(model="gemini-3-flash",
+                               messages=[{"role": "user", "content": "hi"}])
+```
+
+Supports `tools`/`tool_calls` (emulated function calling, `finish_reason:
+"tool_calls"`), vision input (images in messages), and multi-turn.
+
+## 4. Images — REAL downloads via the Chrome-extension tab pool
+
+**The extension backend is the only way to get image BYTES**, and since
+2026-08-01 it is a full parallel tab pool with per-account auto-failover.
+Background: `lh3.googleusercontent.com/gg-dl/...` URLs are session-locked —
+a server-side GET 403s **even with the full cookie jar on the very first hit**,
+and an in-page `fetch()` is CORS-blocked. The extension grabs the rendered
+image *inside* the Gemini tab and the server re-serves it from `/files/`.
+
+Setup (once per Chrome session): load `extension/` (unpacked, MV3) and open one
+`gemini.google.com/u/N/app` tab per Google account you want as a worker. Each
+tab registers with the server; check with:
+
+```bash
+curl -s localhost:8100/v1/status   # "tabs": one row per worker (authuser, busy)
+                                   # "media_quota_cooldown": accounts being skipped
+```
+
+Generate (any OpenAI images client, or curl):
+
+```bash
+curl -s -X POST localhost:8100/v1/images/generations -H 'Content-Type: application/json' \
+  -d '{"prompt":"...", "authuser":"2"}'   # authuser optional — pins the FIRST account tried
+# -> {"data":[{"url":"http://localhost:8100/files/<id>.png"}], "authuser":"3", ...}
+```
+
+Then download the `/files/` URL and **verify bytes** (`file` says PNG, not HTML).
+
+Semantics you must know (all empirically established):
+- **Accounts auto-fail-over.** A quota-dead account is detected, put in a 30-min
+  cooldown (`GEMINI_MEDIA_QUOTA_COOLDOWN`), and the request walks to the next
+  account with a tab. The response's `authuser` says who actually served it.
+- **Per-account image concurrency is 1** (Gemini web silently starves the loser
+  of two concurrent generations). The server serializes per account —
+  parallelism comes from tabs on *different* accounts.
+- **Quota exhaustion stalls silently** (no error in the UI) — it surfaces as a
+  render-timeout, indistinguishable from a slow generation. Attempts after the
+  first use `GEMINI_MEDIA_ATTEMPT_TIMEOUT` (180s) so dead accounts don't burn
+  the whole budget. Note: **Pro-tier accounts generate slower** and can exceed
+  that cap — pin them via `authuser` (first attempt gets the full timeout).
+- `GEMINI_MEDIA_EXCLUDE_AUTHUSERS` (comma-separated indices, default empty)
+  hard-bans accounts from media.
+- The extension self-manages: idle worker tabs auto-refresh (a ~10-min-idle tab
+  fails every job), the first-use "Keep in mind / Got it" notice is auto-dismissed
+  even when it pops mid-response, and `POST /v1/extension/reload` remotely
+  reloads + re-injects the extension (a full Chrome restart also works).
+
+The CLI one-liner (`$GW gemini-web-api-cli image "..."`) still exists but only
+prints the locked lh3 URL — use the server + pool for actual files.
+
+## 5. Videos (Veo) — async job
+
+```bash
+$GW gemini-web-api-cli video "a fox running through a snowy forest"          # job id
+$GW gemini-web-api-cli video "a fox running through a snowy forest" --wait   # poll
+```
+
+Normally ~1–3 min. On success it prints either a **local URL**
+(`http://localhost:8100/files/<job>.mp4`, real bytes — only with the bridge
+below) or the raw `usercontent.google.com` URL, which like images only works in
+a logged-in browser.
+
+### Real video downloads (browser bridge)
+
+The MP4 host needs a per-host, per-account `OSID` cookie only Chrome mints, so a
+plain server GET 403s. The fix is to give the server a Chrome DevTools port.
+
+**This is already set up and automatic** — a second systemd user service,
+`gemini-cdp-chrome`, runs a headless Chrome on `:9222`. The main service `Wants=`
+it, so it comes up automatically. You normally do nothing.
+
+```bash
+curl -s http://localhost:9222/json/version    # JSON => bridge available
+systemctl --user status gemini-cdp-chrome
+```
+
+How it works: on every start it rebuilds a **minimal copy** of the real Chrome
+profile — only `Local State` + `Default/{Cookies, Login Data, Preferences,
+Secure Preferences}`, a few MB, not the multi-GB profile — so it is signed in
+with fresh cookies. Verified: 39 Google cookies incl. `__Secure-1PSID` readable
+over CDP.
+
+> ⚠️ **"Without touching the user's browser" turned out to be FALSE in practice.**
+> Twice (2026-07-31 via cookie clients, 2026-08-01 evening suspected via this very
+> service) a second session sharing the profile's `__Secure-1PSID` rotated
+> `__Secure-1PSIDTS` and **signed the user's desktop Chrome out of Google
+> entirely** — they had to re-log-in every account, and the `/u/N/` account
+> indices RESHUFFLED afterwards (see §6). Treat this service as risky: keep it
+> stopped unless a video download actually needs it, and warn the user before
+> starting it.
+
+> ⚠️ **Never try to enable it by hand with**
+> `google-chrome --remote-debugging-port=9222 --user-data-dir="$HOME/.config/google-chrome"`.
+> If Chrome is already running that just prints `Opening in existing browser
+> session`, the flag is **ignored, port 9222 never opens**, and you'll believe the
+> bridge is on when it isn't. Don't delete Chrome's `SingletonLock` to force it
+> either — use the service.
+
+<details><summary>Install the CDP Chrome service (one time, other machines)</summary>
+
+```bash
+cat > ~/.local/bin/gemini-cdp-prep <<'EOF'
+#!/usr/bin/env bash
+set -u
+SRC="$HOME/.config/google-chrome"; DEST="$HOME/.local/share/gemini-web-api/cdp-profile"
+rm -rf "$DEST"; mkdir -p "$DEST/Default"
+cp "$SRC/Local State" "$DEST/Local State" 2>/dev/null
+for f in "Cookies" "Login Data" "Preferences" "Secure Preferences"; do
+  cp "$SRC/Default/$f" "$DEST/Default/$f" 2>/dev/null
+done
+exit 0
+EOF
+chmod +x ~/.local/bin/gemini-cdp-prep
+cat > ~/.config/systemd/user/gemini-cdp-chrome.service <<'UNIT'
+[Unit]
+Description=Headless Chrome (CDP) for gemini-web-api
+StartLimitIntervalSec=300
+StartLimitBurst=5
+[Service]
+Type=simple
+ExecStartPre=%h/.local/bin/gemini-cdp-prep
+ExecStart=/usr/bin/google-chrome --headless=new --remote-debugging-port=9222 \
+  --user-data-dir=%h/.local/share/gemini-web-api/cdp-profile \
+  --disk-cache-size=52428800 --media-cache-size=52428800 \
+  --no-first-run --no-default-browser-check --disable-gpu \
+  --disable-background-networking --disable-sync --disable-extensions \
+  --disable-dev-shm-usage about:blank
+Restart=on-failure
+RestartSec=10
+[Install]
+WantedBy=default.target
+UNIT
+systemctl --user daemon-reload && systemctl --user enable --now gemini-cdp-chrome
+```
+</details>
+
+Each job downloads in its own tab keyed by `job_id`, so parallel jobs never collide.
+The same `GEMINI_CDP_URL` also auto-harvests cookies (§7).
+
+## 6. Profiles (u/N) and quotas — mostly automatic now
+
+Chat is generous, but **image and video have a per-account daily quota**. The
+user has several Google accounts signed into Chrome, selected by `/u/N/`.
+
+> ⚠️ **`/u/N/` indices are NOT stable.** They are the Google multi-login order,
+> and they RESHUFFLE whenever the user signs out/in (observed 2026-08-01: the
+> work account moved u/4 → u/7, silently invalidating an index-based exclusion).
+> After any sign-in/out event, re-map indices by opening
+> `myaccount.google.com/u/N/` for each N (the page shows name + email) before
+> trusting `GEMINI_AUTHUSER*` or `GEMINI_MEDIA_EXCLUDE_AUTHUSERS` values.
+
+**Video jobs switch profiles automatically.** `GEMINI_AUTHUSER_FALLBACKS` is
+configured, so a job tries the active profile, and on quota exhaustion silently
+rolls to the next one. The job result tells you what happened:
+
+```json
+{"status":"completed","authuser":"2","quota_exhausted":["1","0"]}
+```
+
+So **you normally do nothing** when a quota runs out. Check what's configured:
+
+```bash
+curl -s localhost:8100/v1/status     # active profile, failover list, bridge on/off
+$GW gemini-web-api-cli doctor        # same, in readable form
+```
+
+**A video job that times out means quota is exhausted on _every_ profile tried** —
+an exhausted account stalls rather than erroring cleanly. The error message names
+the profiles attempted. If that happens, Veo genuinely isn't available until the
+daily quota resets: say so plainly rather than silently substituting another tool.
+
+Timeout is `GEMINI_VIDEO_TIMEOUT` (240s here). A real generation finishes in
+~60–180s, so 240s is enough to detect exhaustion without burning 10 min per
+profile — important when failover walks several accounts.
+
+To change the *starting* profile manually, edit the env and restart the service:
+
+```bash
+fuser -k 8100/tcp; sleep 1
+GEMINI_AUTHUSER=2 nohup $GW gemini-web-api >/tmp/gemini-web-api.log 2>&1 &
+until curl -sf -m2 http://localhost:8100/health >/dev/null; do sleep 2; done
+```
+
+To change which profiles are tried automatically (or their order), edit
+`GEMINI_AUTHUSER_FALLBACKS` (comma-separated, e.g. `0,1,2,3,5,6`) in the same env
+file and restart the service. To check whether a profile is even signed in, send
+it a cheap **chat** request — a working profile answers, an unused index errors.
+
+## 7. Troubleshooting — "it doesn't work / no browser cookies"
+
+**Run the diagnostic first. It tells you exactly what's wrong:**
+
+```bash
+$GW gemini-web-api-cli doctor
+```
+
+It reports where credentials come from, which Chrome cookie DBs were found,
+whether `__Secure-1PSID` was extracted, and whether the server is reachable —
+with a concrete FIX for whatever is missing.
+
+### `AuthError: No Gemini credentials`
+
+Means no readable Chrome cookie store on **this** machine. Common causes:
+
+- Chrome isn't installed / never logged in to gemini.google.com **here**.
+- **Running on a remote/headless box** (SSH, container, server) — there is no
+  local browser at all.
+- **WSL:** the code runs in Linux and looks at `~/.config/google-chrome`, but
+  your Chrome is **Windows** Chrome — a different, unreadable profile.
+- Linux cookie DBs are encrypted; the **login keyring must be unlocked**.
+
+**Fix (a) — AUTOMATIC, no manual copying.** Point the server at a logged-in
+Chrome's DevTools port; it harvests the cookies itself (`Storage.getCookies`
+returns httpOnly cookies like `__Secure-1PSID`, which page JS cannot read):
+
+```bash
+google-chrome --remote-debugging-port=9222 --user-data-dir="$HOME/.config/google-chrome"
+GEMINI_CDP_URL=http://localhost:9222 nohup $GW gemini-web-api \
+  >/tmp/gemini-web-api.log 2>&1 &
+```
+
+This kicks in automatically whenever the local cookie store can't be read, and
+the same `GEMINI_CDP_URL` also enables real video downloads (§5).
+
+**Fix (b) — manual fallback**, if you can't run a debug-port Chrome:
+
+```bash
+export GEMINI_1PSID='<__Secure-1PSID value>'
+export GEMINI_1PSIDTS='<__Secure-1PSIDTS value>'   # optional; auto-refreshes
+```
+
+Values come from Chrome **DevTools → Application → Cookies →
+`https://gemini.google.com`**. These env vars take priority over everything else.
+
+Related: `GEMINI_CHROME_PROFILE="Profile 5"` pins a specific profile directory
+when auto-detection picks the wrong one.
+
+### Log messages that are NOT the problem
+
+- `Account status: UNAUTHENTICATED - ... cookies have expired` — often benign;
+  generation still succeeds. Only act on it if requests actually fail.
+- `Unexpected error while refreshing cookies: HTTP Error 429` — Google
+  rate-limiting the cookie-rotation endpoint. Harmless; it retries later.
+- `/health` returns `ok` **before** any cookie is read (the client is created
+  lazily on the first real request) — so a healthy server does **not** prove
+  auth works. Always test with an actual `chat` call.
+
+## Guidance for Claude
+
+**Use this skill instead of the alternatives — they fail:**
+
+| Don't | Why |
+|---|---|
+| `GEMINI_API_KEY` / `google-generativeai` SDK for video | The free-tier key exposes **no `veo` models**; Veo needs a paid AI Ultra/Pro plan |
+| Calling the `gemini_webapi` library directly | It only looks for `__Secure-1PSID` and has no saved session → "missing cookies", so you end up asking the user to paste cookies |
+| **Asking the user to paste `__Secure-1PSID`** | Never do this. This skill reads cookies from local Chrome automatically (and can harvest them over CDP — §7) |
+| Falling back to another video provider without saying so | If Veo is wanted, say plainly if it didn't work rather than silently substituting |
+
+Real incident: a session needed Veo3 for influencer clips, tried an API key and
+the raw library, hit "missing cookies", asked the user to paste them, and shipped
+the whole video on a different provider — **without ever invoking this skill**,
+which would have worked immediately.
+
+
+- Start the server once, then reuse it; don't restart per command.
+- For images, prefer the **extension tab pool** (§4): open one
+  `gemini.google.com/u/N/app` tab per account and let the server's auto-failover
+  pick accounts — don't hand-roll retry loops.
+- On media quota failure (or a 600s video timeout), **switch profiles** rather
+  than retrying the same one (the image path now does this itself).
+- Chat returning a 500 / API error `1097` means a stale session — the server
+  self-heals on retry; if it persists, restart it.
+- After the user signs in/out of Google, **re-map the `/u/N/` indices** (§6)
+  before trusting any account-index config, and reload the worker tabs.
+- Never claim an image or video file was downloaded without verifying real bytes
+  on disk.
