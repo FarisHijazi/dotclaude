@@ -126,15 +126,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "CLAUDE_PLUGIN_ROOT=\"/Users/farishijazi/projects/claude-voice-handsfree/plugins/handsfree\" bash \"/Users/farishijazi/projects/claude-voice-handsfree/plugins/handsfree/scripts/stop-hook.sh\"",
-            "timeout": 60
-          }
-        ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "command",
             "command": "python3 \"$HOME/.claude/scripts/cc-export-convo.py\"",
             "timeout": 15
           }
@@ -178,7 +169,8 @@
     "frontend-design@claude-plugins-official": true,
     "cc-notify@farishijazi-plugins": true,
     "chrome-devtools-mcp@claude-plugins-official": true,
-    "cloudflare@cloudflare": true
+    "cloudflare@cloudflare": true,
+    "skill-creator@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "37signals": {
