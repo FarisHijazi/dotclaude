@@ -1,4 +1,5 @@
 ---
+name: chrome-identify
 description: Identify every connected Chrome profile (deviceId ↔ Google account) and save the mapping
 allowed-tools: ToolSearch, AskUserQuestion, Write, Read, mcp__claude-in-chrome__list_connected_browsers, mcp__claude-in-chrome__select_browser, mcp__claude-in-chrome__tabs_context_mcp, mcp__claude-in-chrome__navigate, mcp__claude-in-chrome__get_page_text
 ---
