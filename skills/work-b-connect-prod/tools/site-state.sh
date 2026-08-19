@@ -60,13 +60,24 @@ _tq "SELECT DISTINCT ON (response_key) response_key, response_value,
      ORDER BY response_key, timestamp DESC;"
 
 echo "----- fleet_state (fleet_controller), MW -----"
+# NOTE: response_value is TEXT and is the literal string 'None' whenever the value was
+# Python None — `site_total_meter_wattage` is 'None' on every tick the gateway had no
+# usable site meter (e.g. the 2026-08-08 ETP Line-2 meter-comms fault, ~50% of ticks).
+# A bare `response_value::numeric` therefore ERRORed out the whole fleet_state block.
+# Cast defensively and keep 'None' visible as a value in its own right — it is a real
+# signal (meter unavailable), not a glitch. `site_total_power_w` is the RESOLVED site
+# power (never None) and `site_meter_source` says which tier produced it.
 _tq "SELECT DISTINCT ON (response_key) response_key,
-       round(response_value::numeric/1e6,3) AS mw,
+       CASE WHEN response_value ~ '^-?[0-9.]+\$'
+            THEN round(response_value::numeric/1e6,3)::text
+            ELSE response_value END AS mw,
        round(extract(epoch FROM (now()-timestamp))) AS age_s
      FROM telemetry_data
      WHERE device_id='fleet_controller' AND endpoint='fleet_state'
        AND timestamp > now() - interval '120 seconds'
-       AND response_key IN ('site_total_meter_wattage','max_power','min_power','site_total_target_wattage')
+       AND response_key IN ('site_total_meter_wattage','site_total_power_w','site_meter_source',
+                            'max_power','min_power','site_total_target_wattage',
+                            'held_command_kind','held_command_watts')
      ORDER BY response_key, timestamp DESC;"
 
 echo "----- grid-gateway errors / over-max rejections (last ${MINS} min) -----"
