@@ -15,11 +15,12 @@
 set -euo pipefail
 # --- credentials -------------------------------------------------------------
 # Read from the environment, never committed: this repo is PUBLIC, and these two
-# scripts previously carried the live passwords as literals. Put them in
-# ~/.config/dema/prod.env (chmod 600). There is deliberately NO default — a fallback
-# would put the credential straight back into git.
-[ -f "${DEMA_ENV_FILE:-$HOME/.config/dema/prod.env}" ] && . "${DEMA_ENV_FILE:-$HOME/.config/dema/prod.env}"
-: "${DEMA_CONTROL_DB_PASSWORD:?not set. Put it in ~/.config/dema/prod.env (chmod 600) or export it.}"
+# scripts previously carried the live passwords as literals. Put them in ~/.claude/.env
+# (chmod 600) — gitignored, and `git add` refuses it. Override the location with
+# DEMA_ENV_FILE. There is deliberately NO default value: a fallback would put the
+# credential straight back into git.
+[ -f "${DEMA_ENV_FILE:-$HOME/.claude/.env}" ] && . "${DEMA_ENV_FILE:-$HOME/.claude/.env}"
+: "${DEMA_CONTROL_DB_PASSWORD:?not set. Put it in ~/.claude/.env (chmod 600) or export it.}"
 export PGPASSWORD="${DEMA_CONTROL_DB_PASSWORD}"
 export PGOPTIONS="-c default_transaction_read_only=on -c statement_timeout=60000"
 exec psql -h "${DEMA_CONTROL_DB_HOST:-10.100.20.16}" -U "${DEMA_CONTROL_DB_USER:-control_writer}" -d "${DEMA_CONTROL_DB_NAME:-control}" "$@"
