@@ -1,5 +1,5 @@
 ---
-name: dema-connect-prod
+name: connect-prod
 description: Read-only investigation of the DFC production site — query the control and telemetry (TimescaleDB) databases, search Loki logs, and read live site state. Use when diagnosing production behaviour, checking fleet/grid state, or correlating a dispatch across services. Never writes to production.
 ---
 
