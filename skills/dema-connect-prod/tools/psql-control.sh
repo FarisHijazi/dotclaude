@@ -13,6 +13,13 @@
 #     (serial ↔ container_name/tank/breaker/phase) — see psql-telemetry.sh.
 #   - miner_config is append-only; per-IP dedup: DISTINCT ON (ip) ... ORDER BY ip, created_at DESC
 set -euo pipefail
-export PGPASSWORD=btjkIvKCpVj9YD
+# --- credentials -------------------------------------------------------------
+# Read from the environment, never committed: this repo is PUBLIC, and these two
+# scripts previously carried the live passwords as literals. Put them in
+# ~/.config/dema/prod.env (chmod 600). There is deliberately NO default — a fallback
+# would put the credential straight back into git.
+[ -f "${DEMA_ENV_FILE:-$HOME/.config/dema/prod.env}" ] && . "${DEMA_ENV_FILE:-$HOME/.config/dema/prod.env}"
+: "${DEMA_CONTROL_DB_PASSWORD:?not set. Put it in ~/.config/dema/prod.env (chmod 600) or export it.}"
+export PGPASSWORD="${DEMA_CONTROL_DB_PASSWORD}"
 export PGOPTIONS="-c default_transaction_read_only=on -c statement_timeout=60000"
-exec psql -h 10.100.20.16 -U control_writer -d control "$@"
+exec psql -h "${DEMA_CONTROL_DB_HOST:-10.100.20.16}" -U "${DEMA_CONTROL_DB_USER:-control_writer}" -d "${DEMA_CONTROL_DB_NAME:-control}" "$@"

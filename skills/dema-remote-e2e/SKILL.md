@@ -1,3 +1,8 @@
+---
+name: dema-remote-e2e
+description: Run the DFC end-to-end test suite on a remote build host (the full docker compose stack with virtual devices). Use when validating a control-service change — unit tests alone are not sufficient for this safety-critical system.
+---
+
 # e2e tests
 
 for end to end testing, this requires the entire docker compose stack and dev stack and services to be running.

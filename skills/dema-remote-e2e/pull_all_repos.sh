@@ -52,8 +52,13 @@ for repo in "$ROOT"/*/; do
 
   # Only fast-forward — never merge/rebase automatically.
   pull_out="$(git pull --ff-only --quiet 2>&1)"; pull_rc=$?
+  # Vendored path dependencies (e.g. control-service -> packages/miner-sdk).
+  # No-op without submodules; an uninitialised one breaks `uv sync`/compose build.
+  sub_out="$(git submodule update --init --recursive --quiet 2>&1)"; sub_rc=$?
   if [ $pull_rc -ne 0 ]; then
     state="PULL-FAILED (${pull_out//$'\n'/ })"
+  elif [ $sub_rc -ne 0 ]; then
+    state="SUBMODULE-FAILED (${sub_out//$'\n'/ })"
   elif [ -n "$dirty" ]; then
     state="up-to-date (DIRTY — not switched)"
   else
