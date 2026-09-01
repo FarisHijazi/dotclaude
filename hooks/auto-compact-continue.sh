@@ -3,11 +3,18 @@
 # continue. Registered on Stop + PostCompact in settings.json; documented for
 # users in commands/auto-compact.md (KEEP THE TWO IN SYNC).
 #
-#   Stop:        used% >= threshold  -> type /compact
-#   PostCompact: if we triggered it  -> type "continue ..."
+#   Stop:                  used% >= threshold  -> type /compact
+#   PostCompact trigger=manual -> type "continue ..."
+#   PostCompact trigger=auto   -> nothing
+#
+# Why the trigger split: Claude Code's OWN auto-compaction fires mid-turn and
+# resumes by itself, so nudging it would queue a spurious extra prompt. A
+# *manual* /compact — whether we typed it or the user did — leaves the session
+# sitting idle, and that is the case worth continuing. (`trigger` is the
+# documented PostCompact matcher: "manual" | "auto".)
 #
 # Threshold: --set <pct> per tmux session > $AUTO_COMPACT_THRESHOLD > 70.
-# 0 or '' disables. --force compacts now regardless.
+# 0 or '' disables both halves. --force compacts now regardless.
 #
 # SAFETY: everything is typed into the pane with `tmux send-keys`, so it may only
 # be sent when the Claude Code input box is EMPTY — otherwise "/compact" is
@@ -102,11 +109,13 @@ fi
 
 if [[ "$force" == 1 ]]; then
   event=Stop                              # self-triggered: no hook JSON on stdin
+  trigger=manual
   sid="${CLAUDE_CODE_SESSION_ID:-}"
 else
   input=$(cat || true)
   json_str() { printf '%s' "$input" | sed -n "s/.*\"$1\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" | head -1; }
   event=$(json_str hook_event_name)
+  trigger=$(json_str trigger)
   sid=$(json_str session_id)
 fi
 [[ -n "$sid" ]] || exit 0
@@ -128,12 +137,24 @@ find_prompt_state() {
 }
 prompt_state=$(find_prompt_state)
 
+# Wait briefly for the input box to be readable AND empty (cc-prompt-state exit
+# 0). Straight after a compaction the pane is still redrawing and has no box at
+# all (exit 2), so a single probe would abandon a session that is a moment away
+# from being perfectly safe. Worst case ~2.4s, inside the 5s hook timeout.
+box_empty() {
+  local i
+  for ((i = 0; i < 8; i++)); do
+    "$prompt_state" "$sess" >/dev/null 2>&1 && return 0
+    sleep 0.3
+  done
+  return 1
+}
+
 # Type $1 into the pane and submit it — only into an empty input box.
 send() {
   local want="$1" cur
   [[ -x "$prompt_state" ]] || { log "$sess: ABORT no cc-prompt-state (cannot verify the box is empty)"; return 1; }
-  "$prompt_state" "$sess" >/dev/null 2>&1 || {
-    log "$sess: SKIP box not empty / not present — user is typing or a dialog is open"; return 1; }
+  box_empty || { log "$sess: SKIP box not empty / not present — user is typing or a dialog is open"; return 1; }
   tmux send-keys -t "$sess" -l -- "$want"
   sleep 0.2
   # The user can start typing between the check and now, so confirm the box holds
@@ -153,7 +174,9 @@ mtime() {  # epoch seconds; GNU stat then BSD stat, 0 if neither works
   printf '%s' "$t"
 }
 
-pending="$TMP/cc-ac-pending-$sid"
+enabled() { local t; t=$(threshold_for "$1"); [[ -n "$t" && "$t" != 0 ]]; }
+
+pending="$TMP/cc-ac-pending-$sid"          # debounces the Stop path only
 
 case "$event" in
   Stop)
@@ -176,8 +199,13 @@ case "$event" in
     send '/compact' || rm -f "$pending"
     ;;
   PostCompact)
-    [[ -e "$pending" ]] || exit 0
-    rm -f "$pending"
+    rm -f "$pending"                       # a compaction happened: unblock Stop
+    # Continue after ANY manual /compact, not just ours: the session is idle
+    # either way, and the whole point is that context pressure never stops work.
+    if [[ "$trigger" == auto ]]; then
+      log "$sess: PostCompact trigger=auto — Claude resumes on its own, not typing"; exit 0
+    fi
+    enabled "$sess" || { log "$sess: PostCompact but auto-compact is disabled here"; exit 0; }
     send 'continue and complete all tasks the user asked for'
     ;;
 esac

@@ -3,8 +3,8 @@ This skill is the user-facing half of the hook script
 and it is registered on `Stop` + `PostCompact` in `~/.claude/settings.json`.
 **The two are a pair: change the script's flags or defaults and update this file
 in the same edit** (and vice versa). Design notes and test evidence:
-`~/docs/devlog/claude_20260803-1945-autocompact-force-and-typing-guard.md`.
-(Referenced by path, not `@`-imported, so running this skill doesn't pull ~180
+`~/.claude/docs/devlog/claude_20260901-1535-claudemd-slim-and-autocompact-portable.md`.
+(Referenced by path, not `@`-imported, so running this skill doesn't pull ~200
 lines of bash into the context it exists to protect.)
 
 Don't worry about the context limit at all — it auto-compacts. If you see the
@@ -33,6 +33,11 @@ if a menu or permission dialog is open.
 Notes:
 
 - Only works inside tmux (it exits silently otherwise).
+- The continue message fires after **any manual compaction** — one this script
+  typed, or one the user typed themselves. It deliberately does **not** fire
+  after Claude Code's own built-in auto-compaction (hook `trigger` is `"auto"`),
+  which happens mid-turn and resumes by itself; typing at that would queue a
+  spurious extra prompt.
 - If it declines (user mid-typing, dialog open), **that's correct** — it logs the
   reason to `$TMPDIR/cc-autocompact.log` and the next turn-end retries
   automatically. Don't work around it by typing into the pane yourself.
@@ -59,3 +64,5 @@ bash $H --unset                             # back to the default
 
 Settings are keyed by **tmux session name** and beat `$AUTO_COMPACT_THRESHOLD`
 (which can only be set when launching `claude`, and can't be changed afterwards).
+`--set 0` disables **both** halves: no threshold compaction and no continue
+message.
