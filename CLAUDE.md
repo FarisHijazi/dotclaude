@@ -2,6 +2,15 @@
 
 IMPORTANT: NEVER reboot or shut down the machine, NEVER restart the Docker runtime, or mess with system internals.
 
+IMPORTANT: NEVER kill a process by pattern — `pkill`/`killall`/`pgrep -f` match the WHOLE command
+line, so a short or numeric pattern hits processes that merely *mention* it (this cost me a running
+VM and its in-flight backup). Every time: run `pgrep -af <pattern>` and READ every match; if one
+line isn't mine, narrow it. Then `kill "$PID"` — capture the PID at launch (`$!`/pidfile), never
+signal by pattern. On a hypervisor/router/NAS or any shared host, use the platform's verb
+(`qm stop`, `docker stop`, `systemctl stop`) and don't signal processes at all. Same rule for
+`xargs rm`, `find -delete`, `grep -l … | xargs sed -i`: print the match list, read it, act on that
+list. A pattern that selects what to DESTROY must be verified by reading its matches first.
+
 NEVER include my real emails, org names, employer names, account handles, or other identifying info as **examples** in code, docs, READMEs, comments, error messages, or sample CLI invocations. Use generic placeholders instead: `work` / `personal` / `client-a` for accounts, `user@example.com` for emails, `acme` / `org` for companies, `<project>` for project names. This applies to anything that gets committed or shared. Real values are fine when they are the actual value being used at runtime (e.g. a config file pointing at the actual account); they are NOT fine as illustrative examples.
 
 read @/Users/farishijazi/.claude/CLAUDE.local.md for private instructions
@@ -44,6 +53,21 @@ Use something that already exists; avoid implementing from scratch unless absolu
 
 When I ask you to configure a project/repo from scratch, I expect you to not do the minimum and to properly configure it. If it's a configuration/deployment/setup task, I expect you to configure it, not to code or develop. I expect it to be properly set up, working, and configured. For example, if it's possible to configure the database or set an API key in the env vars, then I'd expect you to do that; I shouldn't have to open the UI and do it myself. You should carefully search and read the docs and set it up and configure it properly with whatever environment variables are possible. Then, in the case it can't be configured via env vars and without writing code, report to me at the end what I need to do.
 
+## Before you write a new thing, find who already owns it
+
+Apply "use something that already exists" (above) at the **system** level — which service/module
+owns this responsibility — not just at the function level. Before adding a second write path,
+listener, cache or poller for a shared resource, grep the repo and sibling `CLAUDE.md`s for
+ownership language (`owns persistence`, `the ONLY write path`, `single source of truth`) and extend
+the owner instead of cloning it. Full checklist:
+`memory/feedback_find_the_owner_first.md` (recalled automatically when relevant).
+
+## Never render absent data as an answer
+
+Not-yet-loaded and genuinely-empty are different facts. Never render empty state, zeros, `—`, an
+empty chart, or a boolean's FALSE branch while the first request is still in flight — gate on a
+sticky `hasLoaded` first-settle flag, never on `!loading`. Full rule:
+`memory/feedback_never_render_absent_data.md` (recalled automatically when relevant).
 
 ## My coding opinions:
 
@@ -77,7 +101,7 @@ Follow these principles:
 
 Act as a senior staff software engineer.
 
-Always update `CLAUDE.md` before every git commit.
+Always update `CLAUDE.md` before every git commit (and ignore .cc-convos).
 
 Always ask clarifying questions in planning / thinking mode.
 
