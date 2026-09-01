@@ -1,0 +1,69 @@
+{
+  "skill_name": "migrate",
+  "notes": "Eval 3 is a negative control: it must NOT trigger the skill. Run these with `claude -p` on a host that has the skill installed.",
+  "evals": [
+    {
+      "id": 1,
+      "name": "new-laptop-natural-phrasing",
+      "prompt": "I got a new laptop. I want my whole Claude Code setup on it - settings, my skills, and all my chat history - without having to sign in again. Do NOT do anything yet: just name which skill you would use and your first two checks.",
+      "expected_output": "Names migrate. Raises the credential-location question (macOS Keychain vs ~/.claude/.credentials.json) and the path-keyed history problem before proposing any copy.",
+      "assertions": [
+        "mentions the skill migrate",
+        "identifies that macOS stores the live credential in the Keychain, not only in .credentials.json",
+        "identifies that ~/.claude/projects is keyed by the project's absolute path, so a different home orphans history",
+        "does not begin copying anything"
+      ],
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "post-migration-breakage",
+      "prompt": "I copied ~/.claude to my server but claude keeps asking me to log in and --continue shows no history. Do NOT fix anything: just name the skill you would use and the single most likely cause of each symptom.",
+      "expected_output": "Names migrate. Attributes the login prompt to the credential living in the Keychain rather than the copied directory, and the missing history to the path-derived projects/ directory name.",
+      "assertions": [
+        "mentions the skill migrate",
+        "attributes the repeated login to the Keychain-vs-file credential split (or wrong file permissions)",
+        "attributes the missing history to the path-slug mismatch in ~/.claude/projects",
+        "does not modify anything"
+      ],
+      "files": []
+    },
+    {
+      "id": 4,
+      "name": "history-only-move-routes-here",
+      "prompt": "I rsynced this project to dev-box:/home/me/code/app. Now I want my chat history there too. Do NOT run anything: just name the skill and the first check you would make before importing.",
+      "expected_output": "Routes to migrate (history layer / history-migration.md). Establishes the target's real $HOME to build the destination path, and checks for pre-existing .incoming files before importing.",
+      "assertions": [
+        "mentions migrate or its history-migration reference",
+        "determines the destination absolute path from the target's real $HOME rather than assuming it mirrors the source",
+        "checks for existing *.incoming files on both machines before importing",
+        "does not run the import"
+      ],
+      "files": []
+    },
+    {
+      "id": 5,
+      "name": "incoming-conflict-not-auto-keeper",
+      "prompt": "My claude history sync says 'conflict' and left a bunch of X.jsonl.incoming files. Do NOT change any files: just tell me how to decide which copy to keep.",
+      "expected_output": "Must NOT claim the .incoming copy is the keeper. Prescribes comparing line count, last timestamp and count of foreign paths on each side, and promoting .incoming only when it is a provable superset.",
+      "assertions": [
+        "does NOT assert that the .incoming file is usually the correct one to keep",
+        "compares the two copies (line count, last timestamp, or unrewritten source paths) before choosing",
+        "mentions that a larger .incoming can indicate unrewritten source paths rather than more content",
+        "does not modify or delete any files"
+      ],
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "negative-control-unrelated-move",
+      "prompt": "Move the gemm2gemv helper function out of scratchpad/gemm2gemv.py into a new file. Do NOT edit anything: just say in one line what kind of task this is and whether any skill applies.",
+      "expected_output": "Recognises this as an ordinary refactor. Must NOT trigger migrate despite the word 'move'.",
+      "assertions": [
+        "does NOT mention migrate",
+        "classifies the task as a code refactor / file extraction"
+      ],
+      "files": []
+    }
+  ]
+}
