@@ -68,3 +68,119 @@ really does type `/compact` into that pane and press Enter — it did, into the 
 running the test. Give every send-path test a stub `CC_PROMPT_STATE` that exits
 non-zero (reports the box as non-empty); `send()` then aborts before typing and the
 whole state machine is still exercised.
+
+---
+
+# Follow-up (16:00): the continue message never fired
+
+## Symptom
+
+A `/compact` ran in a live session, `PostCompact` ran ("completed successfully"),
+and nothing was typed. The user had to hand-write "continue" — exactly the thing
+the hook exists to avoid.
+
+## Root cause
+
+`PostCompact` was gated on a pending marker file that only the *Stop* half writes:
+
+```bash
+PostCompact)
+  [[ -e "$pending" ]] || exit 0     # <- silently did nothing
+```
+
+So the continue message fired **only** after a compaction this script itself
+triggered. Every other route to a compacted, idle session — the user typing
+`/compact`, or an agent doing it — got nothing. `$TMP` held no marker at all
+(verified: no `cc-ac-pending-*`, no log file), because the marker from the test
+run went into an isolated `TMPDIR`, and the compaction that actually happened was
+a manual one.
+
+## Fix: gate on the hook's `trigger`, not on our own marker
+
+`PreCompact`/`PostCompact` carry a documented matcher — `"manual"` or `"auto"`
+(confirmed in the shipped binary's own hook reference: `| PostCompact |
+"manual"/"auto" | After compaction (receives summary) |`). That is the correct
+discriminator, and it is about the *session's state*, not about who triggered it:
+
+| `trigger` | What happened | Session after | Action |
+|---|---|---|---|
+| `manual` | `/compact` was submitted (ours or the user's) | **idle, waiting** | type the continue message |
+| `auto` | Claude Code's own built-in auto-compaction | mid-turn, resumes itself | nothing — typing would queue a spurious extra prompt |
+
+An absent/unknown `trigger` falls through to the `manual` branch: continuing is
+the useful default, and the empty-box guard makes it safe.
+
+The pending marker keeps its one real job — debouncing the Stop path so a
+second turn-end doesn't submit a second `/compact` — and `PostCompact` now
+*clears* it (a compaction happened, so Stop is unblocked) instead of reading it.
+`--set 0` disables both halves, which is the escape hatch for anyone who does
+not want to be nudged after their own `/compact`.
+
+## Second fix: the box isn't drawn yet right after a compaction
+
+`send()` probed `cc-prompt-state` once. Straight after a compaction the pane is
+still redrawing and has **no input box** (`cc-prompt-state` exit 2 — the same
+"unsafe" answer it gives for a menu), so a single probe would have refused a
+session that was a moment away from being perfectly safe. Replaced with
+`box_empty()`: up to 8 probes, 0.3s apart (~2.4s worst case, inside the 5s hook
+timeout registered in `settings.json`).
+
+## Test evidence
+
+`t3.sh`, 20 assertions, all passing — including the regression itself
+("manual with no pending marker must still reach `send`"), `trigger=auto`
+suppression, absent-`trigger` fallback, `--set 0` disabling the continue half,
+the marker being cleared, Stop debounce/stale-retry, threshold precedence, and
+the `box_empty` retry finishing in 2-4s. Send-path tests use the stub
+`CC_PROMPT_STATE` trick from the section above, so nothing is typed anywhere.
+
+## End-to-end, in a throwaway session
+
+The state machine is unit-tested, but "does the box exist and read as empty when
+`PostCompact` fires" can only be answered by a real compaction. Run in a
+disposable `ac-e2e` tmux session (never the caller's — the hook resolves its
+target from `$TMUX`). Two things that trip this up:
+
+- A **fresh Claude session shows first-run dialogs** ("Teach auto mode about your
+  environment?"). `cc-prompt-state` reported no input box and the hook refused to
+  type — the safety guard behaving exactly as designed. Dismiss with `Escape`
+  first.
+- **`/compact` on a short conversation is refused** ("Not enough messages to
+  compact") and then **no `PostCompact` fires at all**. The stale-marker retry
+  already covers the marker left behind. A real test needs several exchanges
+  first.
+
+## The other reason it never fired: the input box was never "empty"
+
+Trying to prove the fix end-to-end turned up a second, independent cause — and
+this one is not in this repo. `cc-prompt-state` was reporting Claude Code's
+greyed-out **inline prompt suggestion** as user input:
+
+```
+$ cc-prompt-state ac-e2e
+Name one SQL keyword.        # exit 1 = "user is typing, do NOT send-keys"
+```
+
+Nothing had been typed. `send()` fails closed on exit 1 (correctly), so while a
+suggestion or a placeholder hint is on screen, auto-compact is silently disabled
+— no log line, no symptom, just nothing happening. Same for every other consumer
+of that reader.
+
+Fixed in the owner rather than worked around here (`cc-prompt-state` owns "read
+the input box"; a second parser in this hook would be the exact duplication the
+find-the-owner rule exists to prevent). Full write-up, including why "strip the
+dim text" is the wrong fix — dim marks the box *borders* in some themes and the
+*hint* in others — and the before/after table across all 7 live panes:
+`~/Projects/cc-notify/docs/devlog/claude_20260901-1600-prompt-state-ignores-suggestions.md`.
+
+`box_empty()`'s retry is still needed after that fix: it covers the pane being
+mid-redraw (no box at all) right after a compaction, which is a different state
+from "box has text".
+
+## Still unproven
+
+A real compaction driving a real `PostCompact` into a real typing attempt.
+Blocked twice in the throwaway session: first-run dialogs (guard refused —
+correct), then `/compact` refusing with "Not enough messages to compact" on a
+short conversation, which fires **no `PostCompact` at all**. The remaining way to
+prove it is `--force` in a session that has real history — i.e. a live one.
