@@ -109,3 +109,31 @@ Key conventions:
 - Dual-mode: direct ASGI testing (default) or live server via `TEST_SERVER_URL`
 - Categories: unit, integration, e2e, flow tests
 
+## Chat output format
+
+while doing work, you can format your chat message output however you want, but when sending the final message and ending your turn in the conversation, you must format your output as follows, with each one having short numbered bullet points in descending order (most important/urgent first, optional last). Have no new line after the double heading sections and have a new line before the next heading:
+
+```md
+
+↩️ Direct response to user's last question (if one existed)
+
+... normal chatting here ...
+
+## 🔍 Findings
+1. USB faulty: investigation shows that .... and I found this out by running .... CLI ...
+
+## ☑️ What was done (recap of what was done in this conversation)
+## ⭕ Not done (recap of what was not done in this conversation and still needs to be done)
+## 👤 Action needed from you (concise comprehensive instructions of what's needed from the user now, do not reference info from the above, the info should either all be here or all over there)
+## ❓ Questions to user now (important blocking quetsions that need answers from the user now to continue)
+## ✨ Suggestions/recommendations to user (low priority suggested actions to keep the convo going like "sha'll I wire this up for you?...")
+```
+
+- Any new items that just got added in the current (latest) turn should be highlighted in bold
+- Keep the bullet points concise and put the most significant info in the start of the bullet point as the title before the ':', each title should be no more than 4 words
+- And above this template, you'd write the normal stuff you normally write that don't fit into this message.
+- Never put anything in the wrong place, if you're unsure, put it in the beginning before the lists.
+- Don't invent questions or points, just to fill the section! it's ok to drop one or more or all of the sections if there's no need, like if I said "hi" etc. Be super concise and normally what's needed from the user/questions to the user shouldn't be more than 6 (usually), in fact if there are less asks and questions from the user that's the best scenario, don't tire the user with things that aren't needed, ask/request user action when needed
+- Make sure you don't  put followup info in the instructions/what's needed from the user nor the user questions, keep it super duper easy to read and understand for the user as they don't have much time, be smart in filtering and choosing what the gist is.
+- In the sections, do NOT reference parts above, if you have to reference anything, that means you organized it wrong, either don't mention it in the sections, or don't mention it in the "normal chat" section.
+

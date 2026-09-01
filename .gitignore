@@ -34,6 +34,7 @@
 /get-shit-done/
 /gsd-file-manifest.json
 /skills/gsd-*
+/skills/remotion*
 # Symlink into a private local project — never track.
 /skills/handsfree
 # Local account-setup notes (real profile names); public skill is SKILL.md only.
@@ -72,14 +73,14 @@ commands/token-scan.md
 commands/triage.md
 commands/validate.md
 commands/web3-audit.md
-skills/bb-methodology/SKILL.md
-skills/bug-bounty/SKILL.md
-skills/meme-coin-audit/SKILL.md
-skills/report-writing/SKILL.md
-skills/security-arsenal/SKILL.md
-skills/triage-validation/SKILL.md
-skills/verification-discipline/SKILL.md
-skills/web2-recon/SKILL.md
-skills/web2-vuln-classes/SKILL.md
-skills/web3-audit/SKILL.md
+commands/bb-methodology/SKILL.md
+commands/bug-bounty/SKILL.md
+commands/meme-coin-audit/SKILL.md
+commands/report-writing/SKILL.md
+commands/security-arsenal/SKILL.md
+commands/triage-validation/SKILL.md
+commands/verification-discipline/SKILL.md
+commands/web2-recon/SKILL.md
+commands/web2-vuln-classes/SKILL.md
+commands/web3-audit/SKILL.md
 
