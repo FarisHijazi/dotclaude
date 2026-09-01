@@ -12,3 +12,6 @@
 - [Always use uv/uvx for Python](feedback_use_uv_for_python.md) — never pip/pipx, use uv for deps and uvx for CLI tools
 - [Robust infra code](feedback_robust_infra_code.md) — never hardcode IDs/IPs, verify installs, handle all states, check real API responses
 - [Explicit ownership & workspace pattern](feedback_explicit_ownership_and_workspace.md) — every file has an owner (AI or human), use seed/draft workspace for iterative work, direct write for fire-and-forget
+- [Never kill processes by a broad pattern](feedback_never_kill_by_pattern.md) — pkill -f matches the whole command line; read matches, kill by PID
+- [Find who already owns it before writing](feedback_find_the_owner_first.md) — grep for ownership language, extend the owner's method, never add a second writer
+- [Never render absent data as an answer](feedback_never_render_absent_data.md) — gate UI on a sticky hasLoaded, not on !loading
