@@ -135,29 +135,90 @@ Key conventions:
 
 ## Chat output format
 
-while doing work, you can format your chat message output however you want, but when sending the final message and ending your turn in the conversation, you must format your output as follows, with each one having short numbered bullet points in descending order (most important/urgent first, optional last). Have no new line after the double heading sections and have a new line before the next heading:
+Applies to the final message of every **normal** turn — not plan mode, not subagent reports.
+
+**End a turn when the job is done or you are genuinely stuck.** Never end one just to
+report progress half way. If I ask a question while you are working, answer it on the `↩️`
+line and keep working.
+
+### Shape
 
 ```md
+↩️ Direct answer to my last question. A loose line, no heading. Omit it if I asked nothing.
 
-↩️ Direct response to user's last question (if one existed)
-
-... normal chatting here ...
+Normal prose: reasoning, tables, code — anything that has no section of its own.
 
 ## 🔍 Findings
-1. USB faulty: investigation shows that .... and I found this out by running .... CLI ...
+1. 🔍 Short title: the body of the finding ...
+2. 🔍 ...
 
-## ☑️ What was done (recap of what was done in this conversation)
-## ⭕ Not done (recap of what was not done in this conversation and still needs to be done)
-## 👤 Action needed from you (concise comprehensive instructions of what's needed from the user now, do not reference info from the above, the info should either all be here or all over there)
-## ❓ Questions to user now (important blocking quetsions that need answers from the user now to continue)
-## ✨ Suggestions/recommendations to user (low priority suggested actions to keep the convo going like "sha'll I wire this up for you?...")
+## ☑️ What was done
+1. ☑️ Short title: ...
+
+## ⭕ My TODO
+1. ⭕ Short title: ...
+
+## 👤 Action needed from you
+## ❓ Info needed
+## 🔀 Decisions needed from user
+## ✨ Suggestions/recommendations to user
 ```
 
-- Any new items that just got added in the current (latest) turn should be highlighted in bold
-- Keep the bullet points concise and put the most significant info in the start of the bullet point as the title before the ':', each title should be no more than 4 words
-- And above this template, you'd write the normal stuff you normally write that don't fit into this message.
-- Never put anything in the wrong place, if you're unsure, put it in the beginning before the lists.
-- Don't invent questions or points, just to fill the section! it's ok to drop one or more or all of the sections if there's no need, like if I said "hi" etc. Be super concise and normally what's needed from the user/questions to the user shouldn't be more than 6 (usually), in fact if there are less asks and questions from the user that's the best scenario, don't tire the user with things that aren't needed, ask/request user action when needed
-- Make sure you don't  put followup info in the instructions/what's needed from the user nor the user questions, keep it super duper easy to read and understand for the user as they don't have much time, be smart in filtering and choosing what the gist is.
-- In the sections, do NOT reference parts above, if you have to reference anything, that means you organized it wrong, either don't mention it in the sections, or don't mention it in the "normal chat" section.
+### The seven sections
 
+Mutually exclusive — every item belongs in exactly one. **Section order never changes**;
+only the items *inside* a section are ordered, most important/urgent first.
+
+| Section | Holds | Never holds |
+|---|---|---|
+| 🔍 Findings | Something you discovered and did **not** act on | Anything you fixed — that is a Done line |
+| ☑️ What was done | Work completed in this conversation, one compressed line each | The reasoning already written above |
+| ⭕ My TODO | **Your** backlog: work you still owe me and can do yourself | Anything only I can do |
+| 👤 Action needed from you | **Only** what a human can do and you cannot | Anything you could do yourself; any FYI |
+| ❓ Info needed | Facts only I have, which you cannot discover | A choice between options you have laid out |
+| 🔀 Decisions needed | What I must decide, plus anything destructive or outward-facing you need approval for | Anything with an obvious default — just do it |
+| ✨ Suggestions | A concrete offer of out-of-scope work | Observations, ideas, musings |
+
+### The bar for the last four sections
+
+They are **exception reporting**. An item earns a place only when you are genuinely
+blocked, need something only I can supply, or are naming something out of scope.
+
+**If you can do it, do it** — do not hand me work. Anything you are able to do yourself
+either gets done now or goes in ⭕ My TODO. Anything risky enough to need my approval is a
+🔀 Decision (you ask, I answer, *you* then execute) — not an instruction for me to run.
+
+Never invent items to fill a section. An empty section is omitted entirely, and
+"Needed from you: nothing" is worse than silence.
+
+### Item formatting
+
+- Numbered list. **Every item starts with its own section's emoji**, then the title:
+  `1. 🔍 Short title: body`. The emoji repeats on every item so an item still says what it
+  is when read on its own — I may drop the section headings entirely later.
+- The title is at most 4 words and carries the most significant information; the body
+  explains.
+- **Bold the title only** for an item appearing for the first time this turn — the emoji
+  stays unbolded, e.g. `1. 🔍 **Stale main branch**: still served 115 old commits ...`
+- Nest points that depend on each other:
+
+      1. 🔀 Choose USB or UART
+         - if UART, do this...
+      2. 🔀 ...
+
+- No cross-references. Never write "as described above" — needing one means you filed it
+  in the wrong place.
+- No duplication anywhere, including between the prose and the sections. Do not write
+  "described the architecture" when the architecture is already above.
+
+### Whitespace
+
+No blank line between a heading and its first item. One blank line before the next heading.
+
+### AskUserQuestion
+
+Whenever any of the last four sections has an item: write the complete formatted message
+ending with the status token, **then** call `AskUserQuestion`. Use several sequential calls
+if there are more items than one call holds. Actions go in as a multiselect — my ticking a
+box means I have finished that task. Do not write a second formatted report once I answer;
+just carry on with the work.
