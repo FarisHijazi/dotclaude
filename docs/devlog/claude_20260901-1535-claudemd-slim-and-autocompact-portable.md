@@ -171,7 +171,9 @@ the input box"; a second parser in this hook would be the exact duplication the
 find-the-owner rule exists to prevent). Full write-up, including why "strip the
 dim text" is the wrong fix — dim marks the box *borders* in some themes and the
 *hint* in others — and the before/after table across all 7 live panes:
-`~/Projects/cc-notify/docs/devlog/claude_20260901-1600-prompt-state-ignores-suggestions.md`.
+`~/Projects/cc-notify/docs/devlog/claude_20260901-1600-prompt-state-ignores-suggestions.md`. Shipped as cc-notify **v1.7.18**
+(`claude plugin update cc-notify`; the marketplace tracks that repo's `main`, so
+the push is the release).
 
 `box_empty()`'s retry is still needed after that fix: it covers the pane being
 mid-redraw (no box at all) right after a compaction, which is a different state
