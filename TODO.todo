@@ -1,5 +1,6 @@
 
 Todo:
+  [ ] PLEASE!!! try /gsd-*
   [ ] split CLAUDE.md into skills (at least the documentation skill) @created(26-05-08 22:20)
   [ ] /avoid-rework create a new slash command/skill that searches for similar convos in other repos or in the same folder just to make sure that we're not redoing work that's already been done before. it should go like this: 1. parse all histories 2. filter which repos to use (configurable, default=all) 3. fuzzy search/grep multiple search queries across them 4. claude should summarize and mention that these relevant histories to this task were found, it should bring to us not just "related work" but most importantly overlapping work that will prevent us from starting over or duplicating work/code/efforts
   [ ] ccinbox
@@ -8,4 +9,85 @@ Todo:
   [ ] optimize notifications pushing through claude->TMUX->SSH->terminal->VSCode... see if you can really get the real deal, maybe even push native macos notifications that when clicked will navigate all the way to the tmux window with CC
   [ ] add something that will roast my productivity (prompt or post-hook) that mentions things like "The honest read: you're noodling on the API because the feature was easy to build and you have leftover energy. Spend it on something else."
   [ ] @high @20h MAJOR INVESTMENT: something to constantly capture screenshots and monitor usage and then give me analytics + roast my productivity + catch me when I'm doing something wrong
+  [ ] /handoff: this absolutely MUST exist and a bunch of this stuff I'm doing must exist already somewhere
+  [ ] a bunch of my stuff that I custom-made must already exist, this task is to search out there for anything similar and to compare it and list it out as an alternative to deprecate my custom implementations or to keep them
+  [ ] something like `tw` but it can actually also monitor a list of SSH hostnames/devices
+  [ ] find a way to go all the way down CTRL+HOME with MACOS
+  [ ] add a way to allow existing running sessions to read what other sessions are doing, specifically implement this in the /reuse skill, where it can ..... actually maybe it already works just well enough reading the ~/.claude/projects/...
+  [ ] test claude-voice-handsfree plugin end-to-end on macOS (see "test handsfree" section below)
 
+---
+
+## test handsfree
+
+Repo: https://github.com/FarisHijazi/claude-voice-handsfree
+Local: ~/projects/claude-voice-handsfree
+State dir: ~/.claude/handsfree/
+Skill symlink: ~/.claude/skills/handsfree -> ~/projects/claude-voice-handsfree/plugins/handsfree/skills/handsfree
+
+Install is DONE: Stop hook in ~/.claude/settings.json, MCP server in ~/.claude.json.
+
+### 1. Pre-grant macOS permissions
+System Settings -> Privacy & Security
+  - Microphone -> grant to your terminal app
+  - Speech Recognition -> grant to your terminal app
+Skip this and the first dictation pops a permission dialog mid-loop.
+
+### 2. Restart Claude Code
+Quit and start a new session anywhere.
+
+### 3. Verify MCP loaded
+    /mcp        # expect "handsfree" in the list
+
+### 4. Turn it on
+    /handsfree on
+Expected:
+  - assistant prints short greeting
+  - macOS `say` reads it aloud
+  - short beep = start of listening
+  - speak, say "over" to end early, OR wait
+  - if no "over": beeps at 7s / 8s / 9s, cutoff beep at 10s
+  - transcript -> POST /inject -> arrives in Claude as <channel source="handsfree">
+  - loop continues
+
+### 5. Debug commands (in another terminal)
+    curl -s "http://127.0.0.1:$(cat ~/.claude/handsfree/port)/health"
+    tail -f ~/.claude/handsfree/hook.log
+    cat ~/.claude/handsfree/active && echo ON || echo OFF
+
+    # bypass STT — inject a prompt directly to isolate TTS vs STT
+    curl -X POST "http://127.0.0.1:$(cat ~/.claude/handsfree/port)/inject" \
+      -H "authorization: Bearer $(cat ~/.claude/handsfree/token)" \
+      -H "content-type: application/json" \
+      -d '{"text":"what time is it?"}'
+
+### 6. Escape hatches
+    rm ~/.claude/handsfree/active   # Stop hook no-ops next turn
+    Ctrl+C                          # kills listen.swift, hook skips inject
+    /handsfree off
+
+### Likely first-run failure modes
+  - No TTS / no beep / no listen          -> Stop hook missing from ~/.claude/settings.json
+  - /mcp does not show handsfree          -> mcpServers.handsfree missing from ~/.claude.json
+  - TTS works, silent listener            -> Mic permission denied; see hook.log "not authorized"
+  - Listener runs, nothing reaches Claude -> Channel not delivering; try direct /inject curl
+  - Greeting plays twice / loops          -> stop_hook_active guard broken; file a bug
+
+### Reuse findings worth remembering
+  - Claude Code itself has a native `voice` config field (`voiceEnabled`,
+    `voice.mode = hold|tap`, `language`) per settings.json schema (career-coach
+    session bbf5533b, 21d ago). Worth checking if it works natively before
+    relying on this plugin — user said skip for now.
+  - ~/.claude/skills/transcribe wraps Whisper large-v3 (Arabic default) —
+    fallback if SFSpeechRecognizer accuracy is poor for a language.
+  - Self-hosted Whisper LXC at 192.168.50.20 (LXC 104) — local Whisper fallback.
+
+### Files of interest
+  ~/projects/claude-voice-handsfree/plugins/handsfree/server.ts
+  ~/projects/claude-voice-handsfree/plugins/handsfree/scripts/stop-hook.sh
+  ~/projects/claude-voice-handsfree/plugins/handsfree/scripts/listen.swift
+  ~/projects/claude-voice-handsfree/plugins/handsfree/scripts/speak.sh
+  ~/projects/claude-voice-handsfree/plugins/handsfree/skills/handsfree/SKILL.md
+  ~/.claude/handsfree/hook.log         # Stop hook diagnostics
+  ~/.claude/handsfree/{token,port}     # per-session bearer + HTTP port
+  ~/.claude/handsfree/active           # flag — toggle voice mode
