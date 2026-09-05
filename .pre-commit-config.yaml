@@ -5,6 +5,8 @@
 
 exclude: /templates/|node_modules/|\.git/
 
+# The linters/fixers run at commit time only; git-identity-guard opts into pre-push too.
+default_stages: [pre-commit]
 repos:
   # ── General hygiene ────────────────────────────────────────────────
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -82,8 +84,23 @@ repos:
           - --skip=*.lock,*.json,plugins/,node_modules/,*.db,bun.lock
           - --ignore-words-list=iam,ser,nd,te
 
+  - repo: local
+    hooks:
+      # Refuse to commit or push as anyone but the personal identity. Checks the
+      # identity git would use (config, includeIf, env) at commit time and every
+      # outgoing commit at push time. Script: ~/bin/git-identity-guard (dotfiles).
+      - id: git-identity-guard
+        name: git identity is theefaris@gmail.com
+        entry: bash -c 'exec "$HOME/bin/git-identity-guard" "$@"' git-identity-guard
+        args: [theefaris@gmail.com]
+        language: system
+        always_run: true
+        pass_filenames: false
+        stages: [pre-commit, pre-push]
+
 ci:
   autofix_commit_msg: |
     [pre-commit.ci] auto fixes from pre-commit hooks
   autofix_prs: true
   autoupdate_schedule: weekly
+  skip: [git-identity-guard]
