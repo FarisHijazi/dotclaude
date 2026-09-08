@@ -41,14 +41,20 @@ Notes:
 - If it declines (user mid-typing, dialog open), **that's correct** — it logs the
   reason to `$TMPDIR/cc-autocompact.log` and the next turn-end retries
   automatically. Don't work around it by typing into the pane yourself.
+- Typing and pressing Enter are separate keystrokes, and Enter can be swallowed
+  while Claude Code is still opening the slash-command menu. The script waits
+  `$AUTO_COMPACT_ENTER_DELAY` (1s) before Enter, then watches the input row for
+  `$AUTO_COMPACT_CONFIRM_SECS` (10s) and presses Enter again for as long as the
+  text is still sitting there — so `sent '/compact'` in the log now means it was
+  really submitted, not just typed.
 - Run it, then finish your current turn normally. The compact runs at the turn
   boundary, not mid-response.
 - The auto-continue message is generic, so if there's task detail that must
   survive, write a short handoff note to a file first (e.g.
   `docs/devlog/...` or a scratch file) and mention the path — a file survives
   compaction far better than anything you type into the prompt.
-- It also fires on its own at 70% context used by default, so most of the time
-  you never need to think about this.
+- It also fires on its own at **40%** context used by default, so most of the
+  time you never need to think about this.
 
 To change *when* it fires for one session (works on a session that's already
 running, from inside it or from any other terminal):
