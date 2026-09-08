@@ -9,7 +9,7 @@
     ],
     "defaultMode": "auto"
   },
-  "model": "sonnet",
+  "model": "opus",
   "hooks": {
     "SessionStart": [
       {
@@ -109,7 +109,7 @@
           {
             "type": "command",
             "command": "bash \"$HOME/.claude/hooks/auto-compact-continue.sh\"",
-            "timeout": 5
+            "timeout": 20
           }
         ]
       },
@@ -138,7 +138,7 @@
           {
             "type": "command",
             "command": "bash \"$HOME/.claude/hooks/auto-compact-continue.sh\"",
-            "timeout": 5
+            "timeout": 20
           }
         ]
       }
@@ -200,7 +200,7 @@
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
   "skipWorkflowUsageWarning": true,
-  "theme": "auto",
+  "theme": "dark",
   "editorMode": "normal",
   "verbose": false,
   "preferredNotifChannel": "notifications_disabled",

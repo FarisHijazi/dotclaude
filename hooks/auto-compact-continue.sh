@@ -13,7 +13,7 @@
 # sitting idle, and that is the case worth continuing. (`trigger` is the
 # documented PostCompact matcher: "manual" | "auto".)
 #
-# Threshold: --set <pct> per tmux session > $AUTO_COMPACT_THRESHOLD > 70.
+# Threshold: --set <pct> per tmux session > $AUTO_COMPACT_THRESHOLD > 40.
 # 0 or '' disables both halves. --force compacts now regardless.
 #
 # SAFETY: everything is typed into the pane with `tmux send-keys`, so it may only
@@ -26,9 +26,20 @@
 # Requires: tmux, cc-prompt-state (on $PATH or via $CC_PROMPT_STATE).
 set -uo pipefail
 
-THR_DEFAULT=70
+THR_DEFAULT=40
 TMP="${TMPDIR:-/tmp}"; TMP="${TMP%/}"
 me="${0##*/}"
+
+# Typing the text and pressing Enter are two separate keystrokes and the TUI
+# needs a beat between them: as "/compact" lands Claude Code redraws the input
+# row and opens the slash-command menu, and an Enter that arrives mid-redraw is
+# swallowed. ENTER_DELAY is that pause; CONFIRM_SECS is how long afterwards the
+# input row is watched to prove the text really left it.
+ENTER_DELAY="${AUTO_COMPACT_ENTER_DELAY:-1}"
+CONFIRM_SECS="${AUTO_COMPACT_CONFIRM_SECS:-10}"
+
+MARK=$'\342\235\257'   # U+276F  the prompt marker Claude Code draws
+NBSP=$'\302\240'        # U+00A0  see still_typed()
 
 log() { printf '[%s] %s\n' "$(date '+%F %T')" "$*" >>"$TMP/cc-autocompact.log"; }
 die() { echo "$me: $*" >&2; exit 2; }
@@ -46,13 +57,13 @@ USAGE
   exit 2
 }
 
-force=0 action= want_pct= want_sess=
+force=0 action='' want_pct='' want_sess=''
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --force|--skip-check) force=1 ;;
-    --set)     action=set; want_pct="${2:-}"; shift ;;
-    --unset)   action=unset ;;
-    --show)    action=show ;;
+    --set)     action='set'; want_pct="${2:-}"; shift ;;
+    --unset)   action='unset' ;;
+    --show)    action='show' ;;
     --session) want_sess="${2:-}"; shift ;;
     *) usage ;;
   esac
@@ -126,7 +137,7 @@ sess=$(resolve_sess "") || exit 0          # not in tmux / no tmux → nothing t
 find_prompt_state() {
   [[ -n "${CC_PROMPT_STATE:-}" ]] && { printf '%s' "$CC_PROMPT_STATE"; return; }
   command -v cc-prompt-state 2>/dev/null && return
-  local best= f
+  local best='' f
   shopt -s nullglob
   for f in "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"/plugins/cache/*/cc-notify/*/bin/cc-prompt-state \
            "$HOME"/Projects/cc-notify/bin/cc-prompt-state; do
@@ -137,34 +148,118 @@ find_prompt_state() {
 }
 prompt_state=$(find_prompt_state)
 
+# cc-prompt-state, with the input row's padding treated as the whitespace it is.
+#
+# Claude Code separates the "❯" marker from the text with U+00A0, and an EMPTY
+# row is exactly "❯" + U+00A0 and nothing else. cc-prompt-state trims with
+# [[:space:]], which matches U+00A0 on macOS but NOT under glibc — so on the
+# Debian boxes an empty box read as "the user is typing" (one U+00A0 of
+# "text"), and a typed line came back with a leading U+00A0 that could never
+# equal what we typed. Same script, same session, opposite verdicts by OS.
+#
+#   stdout: the box text, U+00A0 folded to a space and trimmed
+#   return: 0 = empty, 1 = holds text, 2 = no input box on screen
+read_box() {
+  local t rc
+  t=$("$prompt_state" "$1" 2>/dev/null); rc=$?
+  [[ "$rc" -eq 2 ]] && return 2
+  t="${t//$NBSP/ }"
+  t="${t#"${t%%[![:space:]]*}"}"
+  t="${t%"${t##*[![:space:]]}"}"
+  printf '%s' "$t"
+  [[ -z "$t" ]]
+}
+
 # Wait briefly for the input box to be readable AND empty (cc-prompt-state exit
 # 0). Straight after a compaction the pane is still redrawing and has no box at
 # all (exit 2), so a single probe would abandon a session that is a moment away
-# from being perfectly safe. Worst case ~2.4s, inside the 5s hook timeout.
+# from being perfectly safe. Worst case ~2.4s. Together with ENTER_DELAY and
+# CONFIRM_SECS a stuck send costs ~14s, which is why settings.json gives this
+# hook a 20s timeout rather than the stock 5s.
 box_empty() {
   local i
   for ((i = 0; i < 8; i++)); do
-    "$prompt_state" "$sess" >/dev/null 2>&1 && return 0
+    read_box "$sess" >/dev/null 2>&1 && return 0
     sleep 0.3
   done
   return 1
 }
 
+# Is $2 STILL sitting unsent in the input row of pane $1?
+#
+# Two details make this exact, both read off a live session:
+#   * the UNSENT input row is "❯" + U+00A0 + text, while the transcript echo of
+#     an already-SUBMITTED line is "❯" + an ordinary space — so the
+#     non-breaking space is precisely what separates "waiting" from "gone";
+#   * only the bottom of the pane is looked at, so the same line further up the
+#     scrollback cannot match. 12 rows, not 4: the input row can wrap onto two
+#     lines in a narrow `tw` pane and Claude Code draws two or three status
+#     rows under the box.
+# Matching a prefix rather than the whole string is the other half of surviving
+# that wrap.
+still_typed() {
+  tmux capture-pane -p -t "$1" 2>/dev/null | tail -12 |
+    grep -qF -- "$MARK$NBSP${2:0:24}"
+}
+
+# Keep pressing Enter while $1 is still sitting in the input row, for up to
+# CONFIRM_SECS. The first Enter does not always take — it can arrive while
+# Claude Code is still opening the slash-command menu — and then nothing is
+# submitted, the context never shrinks, and the next Stop hits the same wall.
+# Returns as soon as the row clears. still_typed is its own dialog guard: a
+# permission dialog covers the input row, so our text cannot be seen there.
+confirm_submitted() {
+  local want="$1" deadline n=0
+  deadline=$(( $(date +%s) + CONFIRM_SECS ))
+  while :; do
+    sleep 0.5
+    if ! still_typed "$sess" "$want"; then
+      [[ "$n" -gt 0 ]] && log "$sess: '$want' went through after $n extra Enter(s)"
+      return 0
+    fi
+    [[ $(date +%s) -ge "$deadline" ]] && return 1
+    tmux send-keys -t "$sess" Enter
+    n=$(( n + 1 ))
+  done
+}
+
 # Type $1 into the pane and submit it — only into an empty input box.
 send() {
-  local want="$1" cur
+  local want="$1" cur rc
   [[ -x "$prompt_state" ]] || { log "$sess: ABORT no cc-prompt-state (cannot verify the box is empty)"; return 1; }
   box_empty || { log "$sess: SKIP box not empty / not present — user is typing or a dialog is open"; return 1; }
   tmux send-keys -t "$sess" -l -- "$want"
-  sleep 0.2
-  # The user can start typing between the check and now, so confirm the box holds
-  # exactly what we typed before pressing Enter. On mismatch abort WITHOUT
-  # backspacing: our text sits there unsent (harmless), whereas blind backspaces
-  # would eat the characters they just typed.
-  cur=$("$prompt_state" "$sess" 2>/dev/null)
-  [[ "$cur" == "$want" ]] || { log "$sess: ABORT before Enter — box is '$cur', expected '$want'"; return 1; }
+  sleep "$ENTER_DELAY"
+
+  # The user can start typing between the check and now, so confirm the box
+  # holds what we typed before pressing Enter. On mismatch abort WITHOUT
+  # backspacing: our text sits there unsent (harmless), whereas blind
+  # backspaces would eat the characters they just typed.
+  cur=$(read_box "$sess"); rc=$?
+  if [[ "$rc" -eq 2 ]]; then
+    # No input box on screen at all — a permission dialog or a menu owns it.
+    # Enter would answer THAT, so never press it.
+    log "$sess: ABORT before Enter — no input box (dialog/menu on screen)"
+    return 1
+  fi
+  if [[ "$rc" -eq 1 && "$cur" != "$want" ]]; then
+    log "$sess: ABORT before Enter — box is '$cur', expected '$want'"
+    return 1
+  fi
+  # rc 0 means the box reads EMPTY, which does NOT mean our text is missing:
+  # cc-prompt-state drops coloured runs as decoration, and Claude Code colours a
+  # RECOGNISED slash command (ESC[38;5;153m/compact), so '/compact' always reads
+  # back as ''. That one line silently defeated every threshold compaction on
+  # every machine — the log is full of "box is '', expected '/compact'". The raw
+  # input row is the honest reading, so check that before giving up.
+  if ! still_typed "$sess" "$want"; then
+    log "$sess: ABORT before Enter — '$want' never reached the input row"
+    return 1
+  fi
   tmux send-keys -t "$sess" Enter
   log "$sess: sent '$want'"
+  confirm_submitted "$want" ||
+    log "$sess: WARNING '$want' STILL in the input row after ${CONFIRM_SECS}s"
 }
 
 mtime() {  # epoch seconds; GNU stat then BSD stat, 0 if neither works
