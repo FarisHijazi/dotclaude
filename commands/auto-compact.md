@@ -47,6 +47,11 @@ Notes:
   `$AUTO_COMPACT_CONFIRM_SECS` (10s) and presses Enter again for as long as the
   text is still sitting there — so `sent '/compact'` in the log now means it was
   really submitted, not just typed.
+- It holds cc-notify's pane type-lock (`bin/cc-type-lock.sh`) for the whole
+  type-and-confirm dance, because cc-notify's colour hook types `/color <name>`
+  into the same box and PostCompact fires both at once — unserialised they glue
+  their texts together and both abort. Without cc-notify installed the lock is a
+  no-op and nothing changes.
 - Run it, then finish your current turn normally. The compact runs at the turn
   boundary, not mid-response.
 - The auto-continue message is generic, so if there's task detail that must
