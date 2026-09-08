@@ -95,3 +95,25 @@ clears it returned 1 after exactly 10s.
 `--force` writes `$TMPDIR/cc-ac-pending-<sid>` and the Stop path skips for 2
 minutes while that marker is fresh. Two consecutive manual test runs therefore
 look like "the fix did nothing" — delete the marker between runs.
+
+## Addendum (20:15) — the hook is not the only typist
+
+The first live PostCompact after the fix logged
+`ABORT before Enter — box is 'bluecontinue and complete all tasks the user asked
+for'`. The stray `blue` is cc-notify's `cc-color-apply.sh` typing `/color blue`
+into the same pane on SessionStart: PostCompact fires both hooks at the same
+instant, they interleave inside each other's check-type-verify dance, and both
+correctly refuse to press Enter because neither reads back what it typed. Net
+effect: nothing is ever submitted and a colour word is left in the box.
+
+`send()` is now a wrapper that holds cc-notify's `bin/cc-type-lock.sh` (a
+mkdir-lock keyed on `#{pane_id}`, found next to `cc-prompt-state`) across the
+whole of `send_locked()`. If cc-notify isn't installed the lock resolves to
+no-op stubs and behaviour is unchanged.
+
+Proven with three typists racing into one live Claude pane — `/color purple`
+(SessionStart), `/color blue`, `/compact` — all three applied in sequence.
+
+Test trap: `--force` resolves its session from `$TMUX`, which must be faked as
+`<socket_path>,<server_pid>,<session_id>`; a bogus socket path makes
+`resolve_sess` return empty and the hook exits 0 silently.

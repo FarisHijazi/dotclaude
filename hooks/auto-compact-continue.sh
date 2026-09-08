@@ -148,6 +148,16 @@ find_prompt_state() {
 }
 prompt_state=$(find_prompt_state)
 
+# cc-notify ships the pane type-lock next to cc-prompt-state. Its cc-color-apply
+# hook types `/color <name>` into this very pane, and PostCompact fires both at
+# the same instant: unserialised, the box ends up holding
+# '/color bluecontinue and complete all tasks...' and BOTH abort, so neither is
+# ever submitted. Absent (no cc-notify) → no-op stubs, unchanged behaviour.
+lock_lib="$(dirname "$prompt_state")/cc-type-lock.sh"
+# shellcheck source=/dev/null
+[[ -r "$lock_lib" ]] && . "$lock_lib"
+declare -F cc_type_lock >/dev/null || { cc_type_lock() { :; }; cc_type_unlock() { :; }; }
+
 # cc-prompt-state, with the input row's padding treated as the whitespace it is.
 #
 # Claude Code separates the "❯" marker from the text with U+00A0, and an EMPTY
@@ -224,7 +234,16 @@ confirm_submitted() {
 }
 
 # Type $1 into the pane and submit it — only into an empty input box.
+# One pane, one typist: hold the lock across the whole check-type-verify dance.
 send() {
+  local rc
+  cc_type_lock "$sess" || { log "$sess: SKIP — another hook holds the pane type-lock"; return 1; }
+  send_locked "$1"; rc=$?
+  cc_type_unlock
+  return "$rc"
+}
+
+send_locked() {
   local want="$1" cur rc
   [[ -x "$prompt_state" ]] || { log "$sess: ABORT no cc-prompt-state (cannot verify the box is empty)"; return 1; }
   box_empty || { log "$sess: SKIP box not empty / not present — user is typing or a dialog is open"; return 1; }
