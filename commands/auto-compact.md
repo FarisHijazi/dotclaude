@@ -58,7 +58,7 @@ Notes:
   survive, write a short handoff note to a file first (e.g.
   `docs/devlog/...` or a scratch file) and mention the path — a file survives
   compaction far better than anything you type into the prompt.
-- It also fires on its own at **40%** context used by default, so most of the
+- It also fires on its own at **45%** context used by default, so most of the
   time you never need to think about this.
 
 To change *when* it fires for one session (works on a session that's already
