@@ -48,6 +48,8 @@
 # Local account-setup notes (real profile names); public skill is SKILL.md only.
 /skills/gws/README.md
 /skills/*-it-prep/
+# Work skills that a private org marketplace already owns — see README.
+/skills/connect-prod/
 # Runtime channel state.
 /channels/inbox/
 # Private overrides: CLAUDE.local.md, settings.local.json, .env.local, ...
