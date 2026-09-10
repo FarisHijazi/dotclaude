@@ -11,7 +11,11 @@ git config filter.claude-settings.clean  "bash scripts/settings-filter.sh clean"
 git config filter.claude-settings.smudge "bash scripts/settings-filter.sh smudge"
 
 # Snapshot what this machine currently has, so the first checkout can restore it.
+# (No-op if settings.json has already been overwritten by a pull — see the script.)
 bash scripts/settings-filter.sh save
+
+# ...and if it HAS already been overwritten, put the key back.
+bash scripts/settings-filter.sh restore
 
 # git only re-runs a filter when it thinks the file changed, so an already-tracked
 # settings.json keeps its old (key-carrying) blob until it is renormalized.
