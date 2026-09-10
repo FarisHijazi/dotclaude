@@ -30,10 +30,13 @@ read @/Users/farishijazi/.claude/CLAUDE.local.md for private instructions
 ### Documentation rules
 
 - IMPORTANT: Any time you write or update, make sure this information doesn't already exist elsewhere, do NOT be redundant, be explicit and useful and not overly verbose.
-- Any time you write info in file B that depends on another file A, then make sure you reference the file A in the file B and link to it using @filename.md.
+- Any time you write info in file B that depends on another file A, then make sure you reference the file A in the file B and link to it.
+  - **`@filename.md` = "inline this into context EVERY time".** Use it only when the referenced file must be read on every single session, without exception. It is a force-load, not a link: an `@` in a file that is itself loaded pulls the target in too, transitively, before the user has typed anything.
+  - **A plain (backticked) path = "read this when the topic comes up".** Default to this for anything read sometimes, on demand, or per-topic — deep-dives, per-component docs, devlogs, incident writeups, runbooks. A doc index of `@` paths re-loads the entire index every session, which is the thing splitting a big file was meant to fix.
+  - When a file's index deliberately uses plain paths, say so in that file ("deliberately plain paths, not `@` includes"), or a later session will "helpfully" convert them back.
 - ALWAYS: double check any information you document by validating and verifying and information you write, and if it conflicts or overlaps with other info documented or undocumented, then also test those as well! leave no room for being wrong or being confused!
-- Any time that a dependant file info changes then be sure to test and reverify and retest and update all dependant files to reflect the changes.
-- Any time a file is updated, if an upstream or downstream dependency is affected, then be sure to test and reverify and retest and update all dependant files to reflect the changes.
+- Any time that a dependent file info changes then be sure to test and reverify and retest and update all dependent files to reflect the changes.
+- Any time a file is updated, if an upstream or downstream dependency is affected, then be sure to test and reverify and retest and update all dependent files to reflect the changes.
 
 # Development Workflow
 
@@ -62,6 +65,12 @@ ownership language (`owns persistence`, `the ONLY write path`, `single source of
 the owner instead of cloning it. Full checklist:
 `memory/feedback_find_the_owner_first.md` (recalled automatically when relevant).
 
+IMPORTANT: Before building ANYTHING new, ALWAYS CHECK COMMUNITY/UPSTREAM SCRIPTS
+EXHAUSTIVELY first (e.g. community-scripts/ProxmoxVE for Proxmox work, or whatever
+the ecosystem's equivalent is). If an upstream script does the job, USE it as-is
+(run it their documented way) — do not port its logic into local code. Build only
+what genuinely does not exist anywhere, and state why nothing existing covers it.
+
 ## Never render absent data as an answer
 
 Not-yet-loaded and genuinely-empty are different facts. Never render empty state, zeros, `—`, an
@@ -69,7 +78,7 @@ empty chart, or a boolean's FALSE branch while the first request is still in fli
 sticky `hasLoaded` first-settle flag, never on `!loading`. Full rule:
 `memory/feedback_never_render_absent_data.md` (recalled automatically when relevant).
 
-## My coding opinions:
+## My coding opinions
 
 - top priority: it works and is elegant and simple with less code usually being better
 - in terms of architecture, I love having a "narrow-waste" or a "bottleneck" where there is a single source of truth rather than information being scattered
@@ -127,6 +136,7 @@ you must always see /Users/farishijazi/.claude/chrome-profiles.json for knowing 
 Python testing skill located at `skills/tests/`. Use for creating comprehensive test suites.
 
 Key conventions:
+
 - File naming: `<name>_test.py` (not `test_<name>.py`)
 - Tests in `tests/` folder at project root
 - Functional style (no test classes)
@@ -202,9 +212,11 @@ Never invent items to fill a section. An empty section is omitted entirely, and
   stays unbolded, e.g. `1. 🔍 **Stale main branch**: still served 115 old commits ...`
 - Nest points that depend on each other:
 
-      1. 🔀 Choose USB or UART
-         - if UART, do this...
-      2. 🔀 ...
+  ```text
+  1. 🔀 Choose USB or UART
+     - if UART, do this...
+  2. 🔀 ...
+  ```
 
 - No cross-references. Never write "as described above" — needing one means you filed it
   in the wrong place.
