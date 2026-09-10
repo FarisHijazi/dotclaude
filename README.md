@@ -4,17 +4,18 @@ collection of AI dev tool techniques, prompts, flows, and tips for Claude Code b
 
 ```sh
 cd ~/.claude && \
-    git clone https://github.com/FarisHijazi/dotclaude && \
+    git clone git@github.com:FarisHijazi/dotclaude && \
     mv dotclaude/.git . && \
     rm -rf dotclaude
 
 # and then when ready to switch to the new changes:
 git stash -m 'stashing changes before dotclaude git clone'
+
+# REQUIRED, once per machine — see "Per-machine plugin state" below:
+bash scripts/install-git-filters.sh
 ```
 
-
 ## Development
-
 
 ## This repo (dotclaude) tracking model
 
@@ -22,6 +23,31 @@ git stash -m 'stashing changes before dotclaude git clone'
 re-includes only owned surfaces (`agents/`, `channels/`, `commands/`, `docs/`,
 `hooks/`, `memory/`, `scripts/`, `skills/`, plus a few root files). Carve-outs
 keep `get-shit-done/`, `skills/gsd-*`, `skills/handsfree`, `skills/gws/README.md`,
-`skills/work-it-prep/`, `channels/inbox/`, and `*.local.*` out of the public
-repo. See @docs/devlog/claude_2026-07-29-whitelist-gitignore.md.
+`skills/*-it-prep/`, `channels/inbox/`, `**/.cc-convos/`, and `*.local.*` out of
+the public repo. See `docs/devlog/claude_2026-07-29-whitelist-gitignore.md`
+(deliberately a plain path, not an `@` include).
 
+### Per-machine plugin state
+
+`settings.json` is shared, but its `enabledPlugins` key is not: it records which
+plugins *this* machine has installed, and Claude Code rewrites the file to drop
+anything it cannot resolve. Committing it makes one machine's list overwrite
+everyone's.
+
+A git clean/smudge filter keeps that one key out of the repo and restores this
+machine's copy from the untracked `settings.plugins.local.json`. **Filters are
+per-clone — a repo cannot configure its own** — so `install-git-filters.sh` above
+is not optional. A `.gitattributes` entry naming a filter that git config does
+not define is silently a no-op: the key gets committed and nothing warns you.
+
+```sh
+bash scripts/settings-filter.sh show      # what this machine owns
+bash scripts/settings-filter.sh save      # after enabling/disabling plugins
+git checkout -- settings.json             # re-apply the snapshot
+```
+
+Install plugins per machine with `claude plugin install <plugin>@<marketplace>`.
+Never copy `plugins/*.json` between machines — they index **absolute** paths and
+will break every plugin on a host with a different home directory.
+
+Full writeup: `docs/devlog/claude_20260910-2015-plugin-state-out-of-git.md`.
