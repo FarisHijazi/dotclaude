@@ -57,6 +57,41 @@ A `pre-commit` hook (`no-plugin-state-in-settings`) checks the **staged blob**,
 not the worktree file — `git show :settings.json | jq -e 'has("enabledPlugins")'`
 — so it catches a machine whose filter was never installed.
 
+## Marketplaces: shared by default, opted out per machine
+
+`enabledPlugins` is per-machine in full. `extraKnownMarketplaces` is not — most
+marketplaces belong on every machine, and only a work marketplace belongs to one
+box alone. So the filter treats it the other way round from the plugin list:
+**everything is shared unless a machine marks it private.**
+
+```sh
+bash scripts/settings-filter.sh privatize <marketplace>
+```
+
+records the name in `privateMarketplaces` inside the untracked snapshot; `clean`
+then strips that entry on the way into the index and `smudge` puts it back on
+the way out. `share` reverses it.
+
+Shared-by-default is the safe direction, and the reason is the failure already
+seen here: a session that cannot resolve a marketplace rewrites `settings.json`
+without it. If work marketplaces were the default, one unreachable one would be
+pruned out of the *shared* file and vanish from every machine at once.
+
+Two details the obvious implementation gets wrong:
+
+- **The name list must be separate from the cached values.** A machine needs to
+  mark a marketplace private *before* installing it. Deriving the list from the
+  cached values instead forces a placeholder entry, and the placeholder is then
+  merged into `settings.json` as a malformed empty marketplace.
+- **`smudge` must merge only the keys it owns.** A blind `.[0] * .[1]` also
+  copies the bookkeeping list into `settings.json`. It merges `enabledPlugins`
+  and `extraKnownMarketplaces` explicitly instead, and leaves everything else
+  exactly as the index had it.
+
+`scripts/settings-filter.test.sh` covers all of this — 32 assertions against
+throwaway files, including the full clean/smudge round trip being byte-equal to
+the original and `clean` being idempotent through it.
+
 ## Traps found while building it
 
 1. **Filters are per-clone by design.** A repo cannot configure its own filters
