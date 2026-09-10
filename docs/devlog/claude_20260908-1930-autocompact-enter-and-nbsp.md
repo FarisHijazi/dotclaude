@@ -70,10 +70,10 @@ PostCompact — otherwise the confirmation loop would be killed mid-flight.
 
 ## Tested
 
-Isolated `tmux -L actest` server + a real `claude`, on **macOS and on work-a**,
+Isolated `tmux -L actest` server + a real `claude`, on **macOS and on a Debian box**,
 driving the real hook through `run-shell` exactly as Claude Code does:
 
-| check | macOS | work-a |
+| check | macOS | Debian |
 | --- | --- | --- |
 | clean box → `/compact` submitted (transcript line count +1) | yes | yes |
 | log says `sent '/compact'` with no WARNING | yes | yes |
