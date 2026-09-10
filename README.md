@@ -44,7 +44,22 @@ not define is silently a no-op: the key gets committed and nothing warns you.
 bash scripts/settings-filter.sh show      # what this machine owns
 bash scripts/settings-filter.sh save      # after enabling/disabling plugins
 git checkout -- settings.json             # re-apply the snapshot
+bash scripts/settings-filter.test.sh      # 32 assertions, touches nothing real
 ```
+
+`extraKnownMarketplaces` is **shared by default** — most marketplaces belong on
+every machine. A marketplace that belongs to one machine only is opted out:
+
+```sh
+bash scripts/settings-filter.sh privatize <marketplace>   # this machine only
+bash scripts/settings-filter.sh share <marketplace>       # undo
+git add --renormalize settings.json
+```
+
+Shared-by-default is the safe direction. A session that cannot resolve a
+marketplace rewrites `settings.json` without it, so an un-privatized entry gets
+pruned for *every* machine at once — which is exactly how a marketplace and four
+plugins silently disappeared from the shared file once already.
 
 Install plugins per machine with `claude plugin install <plugin>@<marketplace>`.
 Never copy `plugins/*.json` between machines — they index **absolute** paths and
