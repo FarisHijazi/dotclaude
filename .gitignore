@@ -17,6 +17,11 @@
 !/cc-notify-tokens.md
 !/settings.json
 !/.gitattributes
+
+# Session transcripts are never shared — CLAUDE.md: "ignore .cc-convos".
+# One got committed under skills/vnc-computer-use/ and carried two employer
+# email addresses into a PUBLIC repo.
+**/.cc-convos/
 # settings.plugins.local.json is this machine's enabledPlugins — see
 # scripts/settings-filter.sh. It must NEVER be tracked.
 !/package.json
