@@ -16,6 +16,9 @@
 !/TODO.todo
 !/cc-notify-tokens.md
 !/settings.json
+!/.gitattributes
+# settings.plugins.local.json is this machine's enabledPlugins — see
+# scripts/settings-filter.sh. It must NEVER be tracked.
 !/package.json
 !/bun.lock
 

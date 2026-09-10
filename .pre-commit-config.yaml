@@ -89,6 +89,15 @@ repos:
       # Refuse to commit or push as anyone but the personal identity. Checks the
       # identity git would use (config, includeIf, env) at commit time and every
       # outgoing commit at push time. Script: ~/bin/git-identity-guard (dotfiles).
+      - id: no-plugin-state-in-settings
+        name: settings.json carries no enabledPlugins
+        # Checks the STAGED blob, not the worktree file — the worktree copy is
+        # supposed to have the key; only the committed one must not. Catches a
+        # clone that never ran scripts/install-git-filters.sh.
+        entry: bash -c 'git show :settings.json 2>/dev/null | jq -e "has(\"enabledPlugins\")" >/dev/null && { echo "settings.json still has enabledPlugins - run scripts/install-git-filters.sh"; exit 1; } || exit 0'
+        language: system
+        pass_filenames: false
+        files: '^settings\.json$'
       - id: git-identity-guard
         name: git identity is theefaris@gmail.com
         entry: bash -c 'exec "$HOME/bin/git-identity-guard" "$@"' git-identity-guard
