@@ -10,6 +10,7 @@ drive any other session's text via the `tmux` CLI (through the Bash tool). This
 skill is the bridge: **list → read/search → (optionally) send keys.**
 
 Primary jobs, in priority order:
+
 1. **List** sessions — local AND on remote SSH machines.
 2. **Read & search** a session's text, including scrollback that is NOT
    currently visible on screen (scrolled off the top).
@@ -45,6 +46,7 @@ identify a session two ways:
   # (tmux -F does NOT expand \t — use a literal separator like ' :: ')
   tmux list-panes -a -F '#{session_name} :: #{pane_title}' | grep -i 'ramp rate'
   ```
+
 - **Status-bar color** is just a hash of the working dir (set by `tcc` /
   re-synced by @~/.claude/hooks/gsd-statusline.js) — cosmetic, for telling
   projects apart at a glance; not something to script against.
@@ -94,6 +96,7 @@ done
 ```
 
 Notes:
+
 - `-o ConnectTimeout=4` keeps unreachable hosts from hanging the sweep.
 - `-o BatchMode=yes` skips hosts that would prompt for a password (no hang).
 - If a host's tmux runs under a different user, SSH as that user in `~/.ssh/config`.
@@ -242,8 +245,10 @@ tmux send-keys -t <session> '2' Enter
 | Remote read | `ssh <host> 'tmux capture-pane -t <s> -p -S -'` |
 | Send text+Enter | `tmux send-keys -t <s> "txt" Enter` |
 | Safe TUI send | `send-keys -l -- "txt"` → `sleep 0.1` → `send-keys Enter` |
+| Send to ALL claude sessions | `tcc-broadcast "txt" [--enter]` (`-n` to dry-run) |
 
 Gotchas:
+
 - `-p` is required to print to stdout; without it `capture-pane` writes to a
   paste buffer instead and you see nothing.
 - `capture-pane` without `-S -` only sees the visible region — easy to miss
