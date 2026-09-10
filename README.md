@@ -23,8 +23,8 @@ bash scripts/install-git-filters.sh
 re-includes only owned surfaces (`agents/`, `channels/`, `commands/`, `docs/`,
 `hooks/`, `memory/`, `scripts/`, `skills/`, plus a few root files). Carve-outs
 keep `get-shit-done/`, `skills/gsd-*`, `skills/handsfree`, `skills/gws/README.md`,
-`skills/*-it-prep/`, `channels/inbox/`, `**/.cc-convos/`, and `*.local.*` out of
-the public repo. See `docs/devlog/claude_2026-07-29-whitelist-gitignore.md`
+`skills/*-it-prep/`, `skills/connect-prod/`, `channels/inbox/`,
+`**/.cc-convos/`, and `*.local.*` out of the public repo. See `docs/devlog/claude_2026-07-29-whitelist-gitignore.md`
 (deliberately a plain path, not an `@` include).
 
 ### Per-machine plugin state
@@ -66,3 +66,15 @@ Never copy `plugins/*.json` between machines — they index **absolute** paths a
 will break every plugin on a host with a different home directory.
 
 Full writeup: `docs/devlog/claude_20260910-2015-plugin-state-out-of-git.md`.
+
+### Work skills belong to their own marketplace
+
+A skill that exists to operate a client's or employer's infrastructure does not
+belong in a personal public repo, even with no credentials in it: the hostnames,
+internal addresses, log catalogues and incident notes are the sensitive part.
+Those live in that org's own private plugin marketplace and are installed from
+it like any other plugin, and the name is carved out of `.gitignore` here so a
+local copy cannot drift back into a commit.
+
+Before adding a skill here, check whether an org marketplace already owns it —
+a duplicate is worse than a link, because only one of the two gets updated.
