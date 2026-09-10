@@ -47,6 +47,7 @@
 /skills/handsfree
 # Local account-setup notes (real profile names); public skill is SKILL.md only.
 /skills/gws/README.md
+/skills/*-it-prep/
 # Runtime channel state.
 /channels/inbox/
 # Private overrides: CLAUDE.local.md, settings.local.json, .env.local, ...
