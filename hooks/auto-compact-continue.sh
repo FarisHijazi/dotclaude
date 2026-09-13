@@ -13,7 +13,7 @@
 # sitting idle, and that is the case worth continuing. (`trigger` is the
 # documented PostCompact matcher: "manual" | "auto".)
 #
-# Threshold: --set <pct> per tmux session > $AUTO_COMPACT_THRESHOLD > 40.
+# Threshold: --set <pct> per tmux session > $AUTO_COMPACT_THRESHOLD > THR_DEFAULT.
 # 0 or '' disables both halves. --force compacts now regardless.
 #
 # SAFETY: everything is typed into the pane with `tmux send-keys`, so it may only
