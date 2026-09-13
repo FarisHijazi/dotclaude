@@ -26,7 +26,7 @@
 # Requires: tmux, cc-prompt-state (on $PATH or via $CC_PROMPT_STATE).
 set -uo pipefail
 
-THR_DEFAULT=45
+THR_DEFAULT=60
 TMP="${TMPDIR:-/tmp}"; TMP="${TMP%/}"
 me="${0##*/}"
 
