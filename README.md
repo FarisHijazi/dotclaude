@@ -13,6 +13,9 @@ git stash -m 'stashing changes before dotclaude git clone'
 
 # REQUIRED, once per machine — see "Per-machine plugin state" below:
 bash scripts/install-git-filters.sh
+
+# plugins are declared in settings.json but NOT cloned with it; this installs them:
+bash scripts/install-plugins.sh
 ```
 
 ## Development
@@ -26,6 +29,25 @@ keep `get-shit-done/`, `skills/gsd-*`, `skills/handsfree`, `skills/gws/README.md
 `skills/*-it-prep/`, `skills/connect-prod/`, `channels/inbox/`,
 `**/.cc-convos/`, and `*.local.*` out of the public repo. See `docs/devlog/claude_2026-07-29-whitelist-gitignore.md`
 (deliberately a plain path, not an `@` include).
+
+### Plugins are declared here, materialised elsewhere
+
+`settings.json` carries only the *names*: `extraKnownMarketplaces` and
+`enabledPlugins`. The marketplace clones and plugin payloads live in
+`~/.claude/plugins/`, which is untracked because it stores absolute paths and
+can embed a PAT in a marketplace URL. Cloning this repo therefore reproduces the
+declaration and not the thing it names — which is what *cache miss* means.
+
+`scripts/install-plugins.sh` closes the gap: it reads the tracked
+`settings.json`, installs whatever is missing, and lists anything installed but
+undeclared. It is idempotent, so it is also the fix to run when a plugin or
+marketplace reports a cache miss. `--dry-run` prints the plan.
+
+Which file to look at for which error, what `~/.claude.json` holds, why
+claude.ai connectors need none of this, and the `syncClaudeAiPlugins` /
+`syncClaudeAiSkills` account-sync alternative:
+`docs/plugins-mcp-and-connectors.md` (deliberately a plain path, not an `@`
+include).
 
 ### Per-machine plugin state
 
