@@ -27,7 +27,15 @@ an accurate manifest of what the machine should have.
 
 The trap is the other direction: **the declaration does not rebuild the
 materialisation.** A `settings.json` listing ten plugins on a machine with an
-empty `plugins/` installs nothing, silently, forever. Nothing self-heals.
+empty `plugins/` installs nothing, silently, forever.
+
+One partial exception, worth knowing because it looks like magic: at session
+start Claude Code reconciles `installed_plugins.json` against `enabledPlugins`
+("Syncing installed_plugins.json with enabledPlugins from all settings.json
+files"). That heals a plugin **whose payload is already sitting in `cache/`**
+but which the registry had lost — purely local, no network, works even
+unauthenticated. It never fetches. So a stale registry fixes itself and a
+missing download never does.
 
 ## What each file under `plugins/` is
 
@@ -63,7 +71,13 @@ takes every plugin from that marketplace down with it.
 A fourth state produces no cache miss at all and is easy to miss: a plugin
 `true` in `enabledPlugins` but **absent from `installed_plugins.json`**. It
 does not appear in `plugin list` even when its cache directory is fully
-populated — the registry, not the cache, is what `list` reads.
+populated — the registry, not the cache, is what `list` reads. This one is
+self-correcting: the next session start re-registers it (see above), so it can
+look like the problem fixed itself while you were reading about it.
+
+The inverse — registry entry present, `installPath` gone — is the true
+`plugin-cache-miss`, and it does **not** self-correct. `install-plugins.sh`
+reports these; `--prune-missing` drops the dead records.
 
 ## MCP servers: four places, one precedence order
 
@@ -163,5 +177,8 @@ Run with a throwaway `HOME`, so nothing real is touched:
 - Booting a session in that state re-creates only the scaffolding —
   `plugins/`, an empty `marketplaces/`, and `installed_plugins.json` as
   `{"version":2,"plugins":{}}`. Not the marketplaces, not the plugins.
-  (Caveat: that session was unauthenticated, so a network fetch could not have
-  run; the empty registry write is still the informative part.)
+- Repeating that boot with `cache/` and `marketplaces/` populated but
+  `installed_plugins.json` emptied, the session **re-registered** the plugin
+  (`[]` → `["cloudflare@cloudflare"]`) while still unauthenticated (→ the
+  registry heals from the cache locally; only the download needs the network).
+  This is why a plugin can vanish from `plugin list` and reappear on its own.

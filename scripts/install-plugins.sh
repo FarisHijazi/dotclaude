@@ -7,14 +7,22 @@
 # "cache miss" means. This script closes that gap, and is idempotent, so
 # it doubles as the repair tool.  See docs/plugins-mcp-and-connectors.md
 #
-#   install-plugins.sh            # install what is missing
-#   install-plugins.sh --dry-run  # print the plan only
+#   install-plugins.sh                 # install what is missing
+#   install-plugins.sh --dry-run       # print the plan only
+#   install-plugins.sh --prune-missing # also drop dead registry records
 set -uo pipefail
 
 SETTINGS="${CLAUDE_SETTINGS_FILE:-$HOME/.claude/settings.json}"
 PLUGDIR="${CLAUDE_PLUGIN_DIR:-$HOME/.claude/plugins}"
 CLAUDE="${CLAUDE_BIN:-$(command -v claude || echo "$HOME/.local/bin/claude")}"
-DRY=0; [ "${1:-}" = "--dry-run" ] && DRY=1
+DRY=0; PRUNE=0
+for a in "$@"; do
+  case "$a" in
+    --dry-run) DRY=1 ;;
+    --prune-missing) PRUNE=1 ;;
+    *) echo "unknown option: $a" >&2; exit 2 ;;
+  esac
+done
 
 [ -s "$SETTINGS" ] || { echo "no settings at $SETTINGS" >&2; exit 1; }
 [ -x "$CLAUDE" ]   || { echo "no claude binary ($CLAUDE)" >&2; exit 1; }
@@ -51,6 +59,32 @@ while read -r id; do
   echo "  MISSING $id"
   run "$CLAUDE" plugin install "$id" -y
 done < <(jq -r '(.enabledPlugins // {}) | to_entries[] | select(.value == true) | .key' "$SETTINGS")
+
+# --- the real cache miss ----------------------------------------------
+# A registry record whose installPath is gone from disk. This is what Claude
+# Code reports as `plugin-cache-miss`, and unlike a missing registry record it
+# never self-heals. Reinstall if the plugin is still declared; otherwise the
+# record is dead and only --prune-missing removes it.
+echo "== registry records whose payload is missing on disk"
+REG="$PLUGDIR/installed_plugins.json"
+if [ -s "$REG" ]; then
+  while IFS=$'\t' read -r id path; do
+    [ -n "$id" ] && [ -n "$path" ] || continue
+    [ -d "$path" ] && continue
+    declared=$(jq -r --arg p "$id" '(.enabledPlugins // {})[$p] // "absent"' "$SETTINGS")
+    echo "  MISS    $id  ($path)"
+    if [ "$declared" = "true" ]; then
+      run "$CLAUDE" plugin install "$id" -y
+    elif [ "$PRUNE" = 1 ]; then
+      echo "    not declared -> dropping dead record"
+      if [ "$DRY" != 1 ]; then
+        tmp=$(mktemp) && jq --arg p "$id" 'del(.plugins[$p])' "$REG" > "$tmp" && mv "$tmp" "$REG"
+      fi
+    else
+      echo "    not declared -> stale; re-run with --prune-missing to drop it"
+    fi
+  done < <(jq -r '.plugins // {} | to_entries[] | .key as $k | .value[] | [$k, .installPath] | @tsv' "$REG")
+fi
 
 # --- the other direction ----------------------------------------------
 # Installed but not declared: fine on a machine with private marketplaces
