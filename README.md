@@ -30,6 +30,28 @@ keep `get-shit-done/`, `skills/gsd-*`, `skills/handsfree`, `skills/gws/README.md
 `**/.cc-convos/`, and `*.local.*` out of the public repo. See `docs/devlog/claude_2026-07-29-whitelist-gitignore.md`
 (deliberately a plain path, not an `@` include).
 
+### Driving the TUI from a script
+
+Two settings a running session will not re-read: `theme` and the per-session
+colour. Editing `settings.json` only affects the NEXT session, so the one lever
+is the slash command, typed into the pane.
+
+- `scripts/cc-theme.sh <name> [target]` — set a live session's theme
+  (`auto`, `dark`, `light`, and the `-daltonized` / `-ansi` variants);
+  `--list` prints the menu and marks the active entry.
+
+It does not count arrow presses. The `/theme` popup opens with the cursor on the
+*current* theme, so any fixed number of Up/Down is wrong from every other
+starting point — and the list grows when you save a custom theme. The menu is
+numbered and a digit selects directly, so the script reads the menu off the
+pane, matches the label exactly, and presses that digit.
+
+Anything that types into a pane must hold the cc-notify type-lock and verify
+against the pane rather than a single `cc-prompt-state` read — a recognised
+slash command is drawn coloured, and an open menu hides the input box
+altogether. `hooks/auto-compact-continue.sh` and cc-notify's `cc-color-apply.sh`
+are the two worked examples.
+
 ### Plugins are declared here, materialised elsewhere
 
 `settings.json` carries only the *names*: `extraKnownMarketplaces` and
