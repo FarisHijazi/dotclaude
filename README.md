@@ -122,3 +122,31 @@ local copy cannot drift back into a commit.
 
 Before adding a skill here, check whether an org marketplace already owns it —
 a duplicate is worse than a link, because only one of the two gets updated.
+
+Current marketplaces of this kind, all declared **private** so they are stripped
+from this repo and reach only the machines that add them:
+
+| Marketplace | Plugin | Install on |
+| --- | --- | --- |
+| `farishijazi-private` | `dema` — `connect-prod`, `feat`, `remote-e2e` | a machine doing that client's work |
+| `thmanyah-skills` | `thmanyah-arabic` | likewise |
+
+```bash
+claude plugin marketplace add <owner>/<repo>
+claude plugin install <plugin>@<marketplace> -y
+scripts/settings-filter.sh privatize <marketplace>   # keep it out of this repo
+git add --renormalize settings.json
+```
+
+`privatize` matters more than it looks: `plugin marketplace add` clones the
+**entire** marketplace repo, so a shared declaration would copy one client's
+content onto the other client's VM the moment that machine ran
+`install-plugins.sh`.
+
+Two behaviours worth knowing when moving a skill into a plugin:
+
+- A plugin namespaces its skills, so `feat` becomes `dema:feat`. Until the old
+  unprefixed copy is deleted, both are offered at once.
+- `plugin uninstall` and `marketplace remove` both leave the payload in
+  `plugins/cache/<marketplace>/`. If the point was to get the content off the
+  machine, delete that directory too.

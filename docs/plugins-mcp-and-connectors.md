@@ -162,6 +162,49 @@ Track the declaration, script the materialisation, never track the state.
 4. **Per-machine plugins** (`grafana-mcp` on one VM only) — keep the marketplace
    private with `scripts/settings-filter.sh privatize`, per
    [README](../README.md).
+5. **Machine-local values** inside the shared file — `enabledPlugins` and `env`
+   are stripped on commit and merged back on checkout by that same filter. `env`
+   is there because a base URL pointing at a proxy on *this* box is a lie
+   everywhere else.
+
+## A skill in a public repo is published content
+
+`~/.claude/skills/` is tracked here, and this repo is public. A skill is just
+markdown: whatever it names — internal hosts, repository names, register layouts,
+which client the work is for — is published on the next push, and stays in the
+history after any later deletion.
+
+So the rule is about *content*, not convenience:
+
+| Content | Where it goes |
+| --- | --- |
+| Generic technique (`pytests`, `tmux`, `gws`) | `skills/` in this repo |
+| Anything naming a client's internals | a plugin in a **private** marketplace |
+
+A private marketplace is not only about the payload. `plugin marketplace add`
+clones the **whole marketplace repo**, so merely declaring one puts every plugin
+in it on that disk. Declaring a client's marketplace in the shared
+`settings.json` would therefore copy that client's content onto every machine,
+including the other client's VM. Mark it private:
+
+```bash
+scripts/settings-filter.sh privatize <marketplace>
+git add --renormalize settings.json
+```
+
+The declaration then lives only on the machines that run
+`plugin marketplace add` themselves, and `enabledPlugins` (already machine-local)
+decides which of them switch the plugin on.
+
+Skills inside a plugin are namespaced by it — `feat` in the `dema` plugin is
+invoked as `dema:feat` — which also settles the collision a skill named `feat`
+otherwise invites.
+
+**Uninstalling does not delete the payload.** `plugin uninstall` and
+`marketplace remove` both leave `plugins/cache/<marketplace>/` on disk. Since a
+session re-registers a plugin from exactly that cache (see below), a leftover
+cache is not merely untidy — remove the directory explicitly when the point was
+to get the content off the machine.
 
 ## Experiments that establish the above
 
@@ -182,3 +225,16 @@ Run with a throwaway `HOME`, so nothing real is touched:
   (`[]` → `["cloudflare@cloudflare"]`) while still unauthenticated (→ the
   registry heals from the cache locally; only the download needs the network).
   This is why a plugin can vanish from `plugin list` and reappear on its own.
+
+Against the live fleet (2026-09-15), adding a private marketplace and installing
+its plugin:
+
+- A private GitHub repo clones fine on a machine with either `gh`'s credential
+  helper or an SSH key — `plugin marketplace add` reported success on a Debian
+  box with no extra configuration.
+- The plugin's three skills were then offered as `dema:connect-prod`,
+  `dema:feat`, `dema:remote-e2e` **alongside** the six unprefixed copies still on
+  disk, so a migration has a window where both exist; the old copies have to be
+  removed for the namespaced ones to be unambiguous.
+- `plugin uninstall` + `marketplace remove` reported success while leaving all
+  16 files under `plugins/cache/farishijazi-private/`.
