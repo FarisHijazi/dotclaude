@@ -63,7 +63,9 @@
 **/paste-cache/
 **/.DS_Store
 
-# pen-testing
+# pen-testing — now bundled as security@farishijazi-private (private marketplace,
+# disabled by default). These paths are kept as guards so a stray local copy
+# under commands/ can never drift into this public repo.
 commands/arsenal.md
 commands/autopilot.md
 commands/bypass-403.md
