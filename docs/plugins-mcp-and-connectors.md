@@ -102,12 +102,18 @@ start, and appear as `mcp__claude_ai_*`. Nothing to sync, nothing to clone —
 log in on a new machine and they are there. They require subscription auth; an
 `ANTHROPIC_API_KEY` session does not get them.
 
+Being account-bound cuts both ways here, where the login is switched often: the
+connector set is whichever account is active, not whichever machine you are at,
+and it changes under you on every switch. That is a feature for Drive and Gmail
+(you want the active identity's mail) and the reason plugins must *not* work the
+same way — see the next section.
+
 Where they interact with the local world: if a connector and a plugin expose
 the same endpoint, the plugin's server is **suppressed** as a duplicate
 (`[MCP] Lazy dedup: suppressing N plugin server(s) that duplicate claude.ai
 connectors`). So a plugin can look broken when it is merely deduplicated.
 
-## Native account sync — off by default
+## Native account sync — deliberately off
 
 Two settings keys exist and default to **false**:
 
@@ -115,10 +121,18 @@ Two settings keys exist and default to **false**:
 { "syncClaudeAiSkills": true, "syncClaudeAiPlugins": true }
 ```
 
-With these on, skills/plugins follow the account instead of the filesystem —
-Anthropic's own answer to this whole problem. Independent of `/cloud-plugins`,
-which only decides whether *this machine's* plugins are forwarded to a cloud
-session.
+With these on, skills and plugins follow the **account** instead of the
+filesystem — Anthropic's own answer to this problem, and on the face of it a
+replacement for everything above. (Unrelated to `/cloud-plugins`, which only
+decides whether *this* machine's plugins are forwarded to a cloud session.)
+
+**Do not turn these on here.** Accounts get switched frequently on all three
+machines, so account-scoped state is the one axis that does *not* stay put: the
+plugin set would change under you every time the active login changed, and the
+thing it changed to would depend on which account you happened to be on rather
+than which machine you were at. Git is the right carrier precisely because a
+checkout is per-machine and does not move when the login does. Evaluated and
+rejected 2026-09-15 — do not re-propose without that constraint changing.
 
 ## Recommended split
 
