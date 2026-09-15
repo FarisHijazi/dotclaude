@@ -104,3 +104,23 @@ The filter's `env` handling is now a `LOCAL_KEYS` list holding `env` and `theme`
 merged back per key by type (objects merge, scalars replace). The test that
 matters: two settings files differing only in `theme` now `clean` to identical
 bytes, so there is nothing left to conflict over.
+
+## A second plugin: the security command set
+
+Same private marketplace, a `security` plugin holding the 23 bug-bounty /
+pentest commands and 10 skills that were loose under `commands/` (and already
+gitignored). One switch now installs, enables, disables and uninstalls the whole
+set, and it ships **disabled by default**.
+
+The migration mattered more than the packaging. Those commands were live in
+`~/.claude/commands/` on every session; a plugin left disabled has to actually
+remove the loose copies or nothing changes. Confirmed both directions against a
+real session: disabled → `/autopilot` is gone; enabled → it returns as
+`security:autopilot` (plugin commands are namespaced, like the skills). A tarball
+backup of all 43 files sits at `~/.claude-security-loose-backup-*` in case the
+plugin ever needs rebuilding from the originals.
+
+The bundling scope was drawn from the `.gitignore` pen-testing list, not from
+"every loose `.md`" — a first pass swept in seven unrelated commands
+(`wrapup`, `wt`, `auto-compact`, …) that a diff against the list caught before
+anything was committed.
