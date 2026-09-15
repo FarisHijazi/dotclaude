@@ -92,3 +92,15 @@ tests-skill conventions (under its current name, `pytests`). Two absolute
 `/Users/...` paths in it are wrong on a Linux box and correctly relative now, and
 the dropped `personal` placeholder was dropped deliberately. Nothing
 machine-specific, nothing to merge, no conflicts to resolve.
+
+## Postscript: `theme` had to join `env`
+
+Committing `theme` lasted exactly one machine. The first VM to pull hit a
+three-way conflict on that single line — upstream `light`, its own `auto` — and
+`cc-theme.sh` writes the key, so every theme switch on any machine would have
+produced the same conflict on the other three.
+
+The filter's `env` handling is now a `LOCAL_KEYS` list holding `env` and `theme`,
+merged back per key by type (objects merge, scalars replace). The test that
+matters: two settings files differing only in `theme` now `clean` to identical
+bytes, so there is nothing left to conflict over.

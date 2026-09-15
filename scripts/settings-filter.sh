@@ -4,8 +4,11 @@
 # Two kinds of per-machine state live inside an otherwise-shared file:
 #
 #   enabledPlugins           which plugins THIS box has installed and switched on
-#   env                      per-machine environment (a local proxy's base URL, and
-#                            anything else that is true here and nowhere else)
+#   env, theme               per-machine preferences: a base URL pointing at a proxy
+#                            on THIS box is a lie everywhere else, and a theme is
+#                            chosen per monitor. Tracking either makes every switch
+#                            a merge conflict on the other machines. Extend the
+#                            LOCAL_KEYS list below to add another.
 #   extraKnownMarketplaces   mostly shared, but a few marketplaces belong to one
 #                            machine only (a work marketplace on that work's VM)
 #
@@ -39,7 +42,7 @@ set -euo pipefail
 LOCAL="${CLAUDE_SETTINGS_LOCAL:-$HOME/.claude/settings.plugins.local.json}"
 SETTINGS="${CLAUDE_SETTINGS_FILE:-$HOME/.claude/settings.json}"
 KEY=enabledPlugins
-ENVK="env"
+LOCAL_KEYS='["env","theme"]'   # machine-local; see header
 MK=extraKnownMarketplaces
 PRIV=privateMarketplaces
 
@@ -55,8 +58,8 @@ private_names() {
 
 case "${1:-}" in
   clean)
-    jq --arg k "$KEY" --arg e "$ENVK" --arg mk "$MK" --argjson priv "$(private_names)" '
-      del(.[$k]) | del(.[$e])
+    jq --arg k "$KEY" --argjson lk "$LOCAL_KEYS" --arg mk "$MK" --argjson priv "$(private_names)" '
+      del(.[$k]) | delpaths([$lk[] | [.]])
       | if has($mk)
         then .[$mk] |= with_entries(select(.key as $n | $priv | index($n) | not))
         else . end
@@ -67,11 +70,14 @@ case "${1:-}" in
       # Merge ONLY the two keys this filter owns. A blind `.[0] * .[1]` would
       # also copy the bookkeeping list into settings.json, and would inject an
       # empty marketplace entry for a name marked private before it is installed.
-      jq -s --arg k "$KEY" --arg e "$ENVK" --arg mk "$MK" '
+      jq -s --arg k "$KEY" --argjson lk "$LOCAL_KEYS" --arg mk "$MK" '
         .[0] as $in | .[1] as $loc
         | $in
         | (if ($loc[$k] // {}) != {} then .[$k] = $loc[$k] else . end)
-        | (if ($loc[$e] // {}) != {} then .[$e] = (($in[$e] // {}) + $loc[$e]) else . end)
+        | reduce $lk[] as $k2 (.;
+            if ($loc[$k2] // null) == null then .
+            elif ($loc[$k2] | type) == "object" then .[$k2] = (($in[$k2] // {}) + $loc[$k2])
+            else .[$k2] = $loc[$k2] end)
         | (if ($loc[$mk] // {}) != {} then .[$mk] = (($in[$mk] // {}) + $loc[$mk]) else . end)
       ' - "$LOCAL"
     else
@@ -92,13 +98,13 @@ case "${1:-}" in
     # private, keeping the old value for one settings.json no longer carries.
     # Never promote a new name — that is what `privatize` is for.
     tmp=$(mktemp)
-    jq -n --arg k "$KEY" --arg e "$ENVK" --arg mk "$MK" --arg pn "$PRIV" \
+    jq -n --arg k "$KEY" --argjson lk "$LOCAL_KEYS" --arg mk "$MK" --arg pn "$PRIV" \
       --slurpfile s "$SETTINGS" \
       --argjson old "$([ -s "$LOCAL" ] && cat "$LOCAL" || echo '{}')" '
       ($old[$mk] // {}) as $cached
       | ($old[$pn] // []) as $names
       | {($k): ($s[0][$k] // {})}
-      + (if (($s[0][$e] // {}) | length) > 0 then {($e): $s[0][$e]} else {} end)
+      + ([$lk[] | select($s[0][.] != null) | {(.): $s[0][.]}] | add // {})
       + (if ($names | length) > 0 then {($pn): $names} else {} end)
       + (($names | map({key: ., value: (($s[0][$mk] // {})[.] // $cached[.])})
           | map(select(.value != null)) | from_entries) as $vals
@@ -115,11 +121,14 @@ case "${1:-}" in
       exit 0
     fi
     tmp=$(mktemp)
-    jq -s --arg k "$KEY" --arg e "$ENVK" --arg mk "$MK" '
+    jq -s --arg k "$KEY" --argjson lk "$LOCAL_KEYS" --arg mk "$MK" '
       .[0] as $in | .[1] as $loc
       | $in
       | (if ($loc[$k] // {}) != {} then .[$k] = $loc[$k] else . end)
-      | (if ($loc[$e] // {}) != {} then .[$e] = (($in[$e] // {}) + $loc[$e]) else . end)
+      | reduce $lk[] as $k2 (.;
+          if ($loc[$k2] // null) == null then .
+          elif ($loc[$k2] | type) == "object" then .[$k2] = (($in[$k2] // {}) + $loc[$k2])
+          else .[$k2] = $loc[$k2] end)
       | (if ($loc[$mk] // {}) != {} then .[$mk] = (($in[$mk] // {}) + $loc[$mk]) else . end)
     ' "$SETTINGS" "$LOCAL" > "$tmp" && mv "$tmp" "$SETTINGS"
     echo "restored $KEY ($(jq --arg k "$KEY" '.[$k] | length' "$LOCAL") entries) into settings.json"

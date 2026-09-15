@@ -187,7 +187,6 @@
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
   "skipWorkflowUsageWarning": true,
-  "theme": "light",
   "editorMode": "normal",
   "verbose": false,
   "preferredNotifChannel": "notifications_disabled",

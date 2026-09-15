@@ -162,10 +162,12 @@ Track the declaration, script the materialisation, never track the state.
 4. **Per-machine plugins** (`grafana-mcp` on one VM only) — keep the marketplace
    private with `scripts/settings-filter.sh privatize`, per
    [README](../README.md).
-5. **Machine-local values** inside the shared file — `enabledPlugins` and `env`
-   are stripped on commit and merged back on checkout by that same filter. `env`
-   is there because a base URL pointing at a proxy on *this* box is a lie
-   everywhere else.
+5. **Machine-local values** inside the shared file — `enabledPlugins`, plus
+   every key in the filter's `LOCAL_KEYS` list (`env`, `theme`), are stripped on
+   commit and merged back on checkout by that same filter. A base URL pointing at
+   a proxy on *this* box is a lie everywhere else, and a theme is chosen per
+   monitor; tracking either turns every switch into a merge conflict on the other
+   machines. Add a key to `LOCAL_KEYS` rather than untracking the file.
 
 ## A skill in a public repo is published content
 
