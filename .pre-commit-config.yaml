@@ -75,6 +75,9 @@ repos:
           - MD036  # emphasis as heading
           - MD060  # table pipe spacing (this repo uses the compact |---| style)
           - --
+        # Vendored upstream docs: we do not own their formatting and rewriting
+        # it would conflict on every refresh from upstream.
+        exclude: '^(commands/remotion-|skills/excalidraw-diagram/)'
 
   # ── Spell checker ──────────────────────────────────────────────────
   - repo: https://github.com/codespell-project/codespell
@@ -84,6 +87,8 @@ repos:
         args:
           - --skip=*.lock,*.json,plugins/,node_modules/,*.db,bun.lock
           - --ignore-words-list=iam,ser,nd,te
+        # Same rationale as the markdownlint exclude: vendored upstream docs.
+        exclude: '^(commands/remotion-|skills/excalidraw-diagram/)'
 
   - repo: local
     hooks:
