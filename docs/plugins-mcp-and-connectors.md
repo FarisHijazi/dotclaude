@@ -198,9 +198,9 @@ The declaration then lives only on the machines that run
 `plugin marketplace add` themselves, and `enabledPlugins` (already machine-local)
 decides which of them switch the plugin on.
 
-Skills inside a plugin are namespaced by it — `feat` in the `work-b` plugin is
-invoked as `work-b:feat` — which also settles the collision a skill named `feat`
-otherwise invites.
+Skills inside a plugin are namespaced by it — `feat` in the `work-b-dfc` plugin is
+invoked as `work-b-dfc:feat` — which also settles the collision a skill named
+`feat` otherwise invites.
 
 **Uninstalling does not delete the payload.** `plugin uninstall` and
 `marketplace remove` both leave `plugins/cache/<marketplace>/` on disk. Since a
@@ -234,9 +234,13 @@ its plugin:
 - A private GitHub repo clones fine on a machine with either `gh`'s credential
   helper or an SSH key — `plugin marketplace add` reported success on a Debian
   box with no extra configuration.
-- The plugin's three skills were then offered as `work-b:connect-prod`,
-  `work-b:feat`, `work-b:remote-e2e` **alongside** the six unprefixed copies still on
-  disk, so a migration has a window where both exist; the old copies have to be
-  removed for the namespaced ones to be unambiguous.
-- `plugin uninstall` + `marketplace remove` reported success while leaving all
-  16 files under `plugins/cache/farishijazi-private/`.
+- The plugin's skills were then offered as `work-b-dfc:connect-prod`,
+  `work-b-dfc:feat`, `work-b-dfc:remote-e2e` **alongside** the unprefixed copies
+  still on disk, so a migration has a window where both exist; the old copies
+  have to be removed for the namespaced ones to be unambiguous.
+- `plugin uninstall` + `marketplace remove` reported success while leaving every
+  file under `plugins/cache/<marketplace>/` — remove that directory explicitly to
+  get the content off the machine.
+- A client's skills belong in **that org's own** private marketplace
+  (`WORK-B/work-b-skills` → the `work-b-dfc` plugin), not a personal account: the
+  org owns and updates them, and a personal duplicate silently goes stale.
