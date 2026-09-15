@@ -128,8 +128,9 @@ from this repo and reach only the machines that add them:
 
 | Marketplace | Plugin | Install on |
 | --- | --- | --- |
-| `farishijazi-private` | `dema` — `connect-prod`, `feat`, `remote-e2e` | a machine doing that client's work |
-| `thmanyah-skills` | `thmanyah-arabic` | likewise |
+| `dema-skills` (`DEMAEnergy/dema-skills`) | `dema-dfc` — connect-prod, feat, remote-e2e, merge-deploy-test | a machine doing that client's work |
+| `thmanyah-skills` (`Thmanyah-LLC/…`) | `thmanyah-arabic` | likewise |
+| `farishijazi-private` | `security` — personal pentest set, disabled by default | any machine, on demand |
 
 ```bash
 claude plugin marketplace add <owner>/<repo>
@@ -138,15 +139,18 @@ scripts/settings-filter.sh privatize <marketplace>   # keep it out of this repo
 git add --renormalize settings.json
 ```
 
-`privatize` matters more than it looks: `plugin marketplace add` clones the
+A client's skills belong in **that org's own** private marketplace
+(`DEMAEnergy/dema-skills`, `Thmanyah-LLC/…`), never a personal account — the org
+owns and maintains them. A personal private marketplace is only for personal
+plugins. `privatize` matters more than it looks: `plugin marketplace add` clones the
 **entire** marketplace repo, so a shared declaration would copy one client's
 content onto the other client's VM the moment that machine ran
 `install-plugins.sh`.
 
 Two behaviours worth knowing when moving a skill into a plugin:
 
-- A plugin namespaces its skills, so `feat` becomes `dema:feat`. Until the old
-  unprefixed copy is deleted, both are offered at once.
+- A plugin namespaces its skills, so `feat` becomes `dema-dfc:feat`. Until the
+  old unprefixed copy is deleted, both are offered at once.
 - `plugin uninstall` and `marketplace remove` both leave the payload in
   `plugins/cache/<marketplace>/`. If the point was to get the content off the
   machine, delete that directory too.

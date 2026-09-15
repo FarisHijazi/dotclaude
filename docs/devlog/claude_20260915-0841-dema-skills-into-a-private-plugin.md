@@ -32,19 +32,28 @@ that machine.
 
 ## The shape of the fix
 
-A new **private** marketplace, `FarisHijazi/claude-plugins-private`, holding one
-plugin, `dema`, with the three skills inside it.
+The client already has its own private marketplace repo — `DEMAEnergy/dema-skills`,
+plugin `dema-dfc` — and it already contained connect-prod, feat, remote-e2e
+(and merge-deploy-test). The right fix was simply to *use* it: the org owns and
+maintains those skills, so they must not be duplicated on a personal account.
 
-The declaration is marked private with `settings-filter.sh privatize`, which
-matters more than it first appears: `plugin marketplace add` clones the *whole*
-marketplace repo, so leaving the declaration shared would have copied one
-client's material onto the other client's VM the first time that box ran
-`install-plugins.sh`. Private means the declaration lives only on the machines
-that add it by hand, and `enabledPlugins` — already machine-local — decides
-which of those switch it on.
+(My first pass got this wrong and stood up a personal
+`FarisHijazi/claude-plugins-private` with a `dema` plugin. That was pure
+duplication of the org repo, and the org's copies were in fact better — its
+`feat` uses `@${CLAUDE_PLUGIN_ROOT}/skills/...`, the proper plugin-relative
+reference. The personal `dema` plugin was uninstalled everywhere and removed
+from that repo, which now carries only the personal `security` plugin.)
 
-`.gitignore` now carves out all three names, so a local copy cannot drift back
-into a commit.
+The org marketplace is added and marked private with `settings-filter.sh
+privatize`, which matters more than it first appears: `plugin marketplace add`
+clones the *whole* marketplace repo, so leaving the declaration shared would have
+copied one client's material onto the other client's VM the first time that box
+ran `install-plugins.sh`. Private means the declaration lives only on the
+machines that add it by hand, and `enabledPlugins` — already machine-local —
+decides which of those switch it on.
+
+`.gitignore` still carves out the loose skill names, so a local copy cannot drift
+back into a commit.
 
 ## Verified, not assumed
 
@@ -52,21 +61,21 @@ Installed on a machine that does no work for this client, and asked a real
 session what it could see:
 
 ```text
-connect-prod        dema-connect-prod   dema-feat
-dema-remote-e2e     feat                remote-e2e
-dema:connect-prod   dema:feat           dema:remote-e2e
+dema-dfc:connect-prod   dema-dfc:feat   dema-dfc:remote-e2e
+dema-dfc:merge-deploy-test
 ```
 
 Three facts fell out of that:
 
-1. Plugin skills are namespaced — `feat` inside the `dema` plugin is
-   `dema:feat`. That settles the collision a skill called `feat` invites, and
-   it is why `feat/SKILL.md`'s two `@~/.claude/skills/...` force-loads had to be
-   rewritten: those paths do not exist inside a plugin.
-2. Both copies are offered at once until the unprefixed directory is deleted, so
-   a migration has an ambiguous window.
+1. Plugin skills are namespaced — `feat` inside `dema-dfc` is `dema-dfc:feat`.
+   That settles the collision a skill called `feat` invites, and it is why a
+   plugin's `feat/SKILL.md` refers to its siblings with
+   `@${CLAUDE_PLUGIN_ROOT}/skills/...`, not `@~/.claude/skills/...` — the latter
+   paths do not exist inside a plugin.
+2. Both the plugin copy and any loose unprefixed copy are offered at once until
+   the loose directory is deleted, so a migration has an ambiguous window.
 3. `plugin uninstall` followed by `marketplace remove` reported success and left
-   all 16 files in `plugins/cache/`. Since a session re-registers a plugin from
+   every file in `plugins/cache/`. Since a session re-registers a plugin from
    exactly that cache, a leftover cache is not merely untidy. Removing the
    directory explicitly and re-asking gave a clean answer.
 
