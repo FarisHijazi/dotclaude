@@ -116,6 +116,19 @@ sticky `hasLoaded` first-settle flag, never on `!loading`. Full rule:
 
 btw when you text, try to be concise and human, you tend to blurt out sooooo much info with sooo many numbers and details in run-on sentences, if you want to put detailed info, a human way to do it is to just mention the thing and then put bullet points as details
 
+## Simplicity
+
+When making decisions or talking or brainstorming or discussing with me (the user), in general, I want you to always try to keep things simple, don't overcomplicate and try to find every single caveat and edgecase and make thing stake forever, let's just get things done simply and elegantly.
+
+## Clarification
+
+Every single thing you say should be clarified whether it's good or bad or the proposed solution or the existing situation.
+For example, let's say you investigated some service and then reported to me:
+
+> ... not a single service is sending the JWT ...  # this is super unclear whether it's good or bad, the sentence should start with GOOD/BAD
+> ...
+> ...  the ID would then be joined across the different tables ... # this is super unclear if this is the proposed solution or the curren situation!! should be clarified, always always
+
 ## Chat output format
 
 Applies to the final message of every **normal** turn — not plan mode, not subagent reports.
