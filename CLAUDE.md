@@ -33,9 +33,9 @@ pointing at the actual account), never as illustration.
 
 ## Documentation
 
-- Document what you did before you stop coding, in `./docs/devlog/claude_{DATETIME}-{DESC}.md`. Read
-  that folder too — other devs leave notes there.
-- Always update `CLAUDE.md` before every git commit (ignore `.cc-convos`). Monorepos get a separate
+- Concicely document what you did before you stop coding, in `./docs/devlog/claude_{DATETIME}-{DESC}.md`. Read
+  that folder as needed — other devs leave notes there.
+- Always update `CLAUDE.md` before every git commit (ignore `./.cc/` and `./.cc-convos`). Monorepos get a separate
   `CLAUDE.md` per project/sub-project, not one big root file.
 - Don't be redundant: before writing, check the information isn't already elsewhere. Be explicit and
   useful, not verbose.
@@ -118,16 +118,18 @@ btw when you text, try to be concise and human, you tend to blurt out sooooo muc
 
 ## Simplicity
 
-When making decisions or talking or brainstorming or discussing with me (the user), in general, I want you to always try to keep things simple, don't overcomplicate and try to find every single caveat and edgecase and make thing stake forever, let's just get things done simply and elegantly.
+when making decisions or talking or brainstorming or discussing with me (the user), in general, I want you to always try to keep things simple, don't overcomplicate and try to find every single caveat and edgecase and make thing stake forever, let's just get things done simply and elegantly.
 
 ## Clarification
 
-Every single thing you say should be clarified whether it's good or bad or the proposed solution or the existing situation.
-For example, let's say you investigated some service and then reported to me:
+every single thing you say should be clarified whether it's good or bad or the proposed solution or the existing situation.
+for example, let's say you investigated some service and then reported to me:
 
-> ... not a single service is sending the JWT ...  # this is super unclear whether it's good or bad, the sentence should start with GOOD/BAD
-> ...
-> ...  the ID would then be joined across the different tables ... # this is super unclear if this is the proposed solution or the curren situation!! should be clarified, always always
+```
+... not a single service is sending the JWT.  # this is super unclear whether it's good or bad, the sentence should start with 👍/👎 (to clarify if this is a good or bad thing)
+...
+...  the ID would then be joined across the different tables ... # this is super unclear if this is the proposed solution or the current situation!! should be clarified, always always
+```
 
 ## Chat output format
 
@@ -143,6 +145,7 @@ concisely is fine. Whenever you mention a PR, give the entire GitHub URL, not ju
 
 ```md
 ↩️ Direct answer to my last question. A loose line, no heading. Omit it if I asked nothing.
+   Mid-job it carries the state too: "step 3 of 5 done".
 
 Normal prose: reasoning, tables, code — anything that has no section of its own.
 
@@ -157,6 +160,8 @@ Normal prose: reasoning, tables, code — anything that has no section of its ow
 ## ❓ Info needed
 ## 🔀 Decisions needed from user
 ## ✨ Suggestions/recommendations to user
+
+Next: One thing I can do in under two minutes — "open the file" counts. Omit it if nothing is open.   [status token]
 ```
 
 ### The seven sections
@@ -193,6 +198,10 @@ is worse than silence.
 - No cross-references — never "as described above"; needing one means it's filed in the wrong place.
 - No duplication anywhere, including between the prose and the sections.
 - No blank line between a heading and its first item; one blank line before the next heading.
+- **Time estimates in concrete units, never "a bit"** — every ⭕ TODO, ✨ Suggestion and proposed plan
+  carries one ("~10 min", "an afternoon if tests don't cover it"), aimed at whoever executes it.
+- **Errors state location, cause, fix** — never "uh oh" or "there seems to be a problem":
+  `auth.spec.ts:42 expected 200, got 401. Cause: no Authorization header. Fix: set it in the request.`
 
 ### AskUserQuestion
 
