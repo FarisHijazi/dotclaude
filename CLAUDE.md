@@ -33,9 +33,9 @@ pointing at the actual account), never as illustration.
 
 ## Documentation
 
-- Concicely document what you did before you stop coding, in `./docs/devlog/claude_{DATETIME}-{DESC}.md`. Read
+- Concisely document what you did before you stop coding, in `./docs/devlog/claude_{DATETIME}-{DESC}.md`. Read
   that folder as needed — other devs leave notes there.
-- Always update `CLAUDE.md` before every git commit (ignore `./.cc/` and `./.cc-convos`). Monorepos get a separate
+- Always update `CLAUDE.md` before every git commit (ignore `./.cc/` and `./.cc-convos`). Mono-repos get a separate
   `CLAUDE.md` per project/sub-project, not one big root file.
 - Don't be redundant: before writing, check the information isn't already elsewhere. Be explicit and
   useful, not verbose.
@@ -125,8 +125,8 @@ when making decisions or talking or brainstorming or discussing with me (the use
 every single thing you say should be clarified whether it's good or bad or the proposed solution or the existing situation.
 for example, let's say you investigated some service and then reported to me:
 
-```
-... not a single service is sending the JWT.  # this is super unclear whether it's good or bad, the sentence should start with 👍/👎 (to clarify if this is a good or bad thing)
+```txt
+... not a single service is sending the JWT.  # this is super unclear whether it's good or bad, the sentence should start with 👍🏻/👎🏿 (to clarify if this is a good or bad thing)
 ...
 ...  the ID would then be joined across the different tables ... # this is super unclear if this is the proposed solution or the current situation!! should be clarified, always always
 ```
