@@ -129,6 +129,8 @@ user, so their phone channel can be wired in there later.
   `~/.claude/settings.json` for `mcp__claude-in-chrome__.*`) adds a "Possible
   login wall" note when a Chrome result looks like a login page. It works by
   keyword matching, so it also fires on pages that only mention signing in.
+  It is off by default and runs only in sessions where the user typed
+  `/login-watch on` (the `login-watch` skill).
   Treat it as a hint, not an order: check whether the task really needs the
   login and ignore it if not.
 
