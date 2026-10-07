@@ -1,6 +1,6 @@
 ---
 name: request-user-login
-description: Use this skill whenever the user asks Claude to sign in, log in, autofill a password, use a passkey, or get past MFA in their real Chrome. Also use it whenever a browser task targets a site that usually needs an account, even if login isn't mentioned - cloud consoles and billing, Grafana, Portainer, Proxmox, router or NAS admin pages at a LAN IP, SaaS dashboards. Load it before the first browser step, not after you're stuck. It sends the user a macOS notification, and one click approves the whole login. Bitwarden then fills the password or presses the passkey, and Claude does every other step without seeing a secret. Also use it for any login wall mid-task (expired session, Google "verify it's you"), and to alert the user whenever Claude is stuck and needs a human, because they often aren't watching the chat. Not for writing auth code or login tests, rotating keys or secrets, keychain or OS settings, or reading open tabs that need no sign-in.
+description: Get past a login wall in the user's real Chrome when the task needs it. Use this when a Claude in Chrome task can't continue without the user being signed in - a sign-in page, an expired session, Google "verify it's you", a passkey or MFA screen - or when the user asks to sign in, autofill a password or use a passkey. Typical sites are cloud consoles and billing, self-hosted dashboards, router or NAS admin pages, and SaaS accounts. Decide from the task. If the goal can be reached without signing in, skip it. If it can't, don't stop and don't just say so in chat (the user often isn't reading it) - run this skill so the user gets a macOS notification. One click on it is their full consent for the whole login; Bitwarden fills the password or presses the passkey, and Claude does every other step without seeing a secret. Also use it to alert the user whenever Claude is stuck and needs a human. Not for writing auth code or login tests, rotating keys or secrets, or keychain/OS settings.
 ---
 
 # request-user-login
@@ -21,9 +21,13 @@ Dismissing or ignoring a notification declines, and nothing happens.
 
 ## The rules (read these first)
 
-- **A login wall never ends your turn.** When a page asks you to sign in, or
-  shows an expired session, "verify it's you" or MFA, don't stop and don't
-  just tell the user in chat. Run this skill's script right away. The user
+- **First decide whether the task needs the login.** A page that merely offers
+  a "Sign in" link, or a public page that already shows what the task needs,
+  doesn't need this skill. Use it when the task can't go on without the user
+  being signed in.
+- **A login wall the task needs never ends your turn.** When that happens
+  (a sign-in page, an expired session, "verify it's you" or MFA), don't stop
+  and don't just tell the user in chat. Run this skill's script right away. The user
   often isn't reading the chat (they may be away, or on their phone), so a
   chat message saying "login needed" is never seen. Only the notification
   reaches them.
@@ -122,10 +126,11 @@ user, so their phone channel can be wired in there later.
 ## Notes
 
 - A PostToolUse hook (`scripts/login-wall-hook.sh`, wired in
-  `~/.claude/settings.json` for `mcp__claude-in-chrome__.*`) scans every Chrome
-  tool result for login-wall signs. It injects a "run request-user-login now"
-  reminder once per page, so login walls get caught even when the skill wasn't
-  loaded up front.
+  `~/.claude/settings.json` for `mcp__claude-in-chrome__.*`) adds a "Possible
+  login wall" note when a Chrome result looks like a login page. It works by
+  keyword matching, so it also fires on pages that only mention signing in.
+  Treat it as a hint, not an order: check whether the task really needs the
+  login and ignore it if not.
 
 - `--no-submit` fills the form without pressing Return. Use it when Return
   would do the wrong thing, such as on a multi-field form.
