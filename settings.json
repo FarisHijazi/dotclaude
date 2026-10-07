@@ -108,7 +108,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$HOME/.claude/hooks/auto-compact-continue.sh\"",
+            "command": "bash \"$HOME/.claude/hooks/selfcompact.sh\"",
             "timeout": 20
           }
         ]
@@ -137,7 +137,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$HOME/.claude/hooks/auto-compact-continue.sh\"",
+            "command": "bash \"$HOME/.claude/hooks/selfcompact.sh\"",
             "timeout": 20
           }
         ]

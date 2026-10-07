@@ -49,7 +49,7 @@ pane, matches the label exactly, and presses that digit.
 Anything that types into a pane must hold the cc-notify type-lock and verify
 against the pane rather than a single `cc-prompt-state` read — a recognised
 slash command is drawn coloured, and an open menu hides the input box
-altogether. `hooks/auto-compact-continue.sh` and cc-notify's `cc-color-apply.sh`
+altogether. `hooks/selfcompact.sh` and cc-notify's `cc-color-apply.sh`
 are the two worked examples.
 
 ### Plugins are declared here, materialised elsewhere

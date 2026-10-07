@@ -1,5 +1,5 @@
 ---
-name: terminate
+name: selfexit
 description: Definitely terminate the current Claude Code session with the EndConversation as your last message, continue the conversation and then EndConversation
 allowed-tools:
   - Bash
@@ -23,4 +23,3 @@ ends the session.
 - If `done.sh` errors (exit 2/3/4), read its message, fix the argument (it must be
   `$PPID` from a Bash tool call in THIS session), and run it again. Never stop after
   one failed attempt while the session is still alive.
-

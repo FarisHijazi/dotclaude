@@ -6,7 +6,7 @@
 #
 # Two failure modes are handled, and only ONE of them is owned here:
 #
-#   1. CONTEXT FULL  — owned by ~/.claude/hooks/auto-compact-continue.sh
+#   1. CONTEXT FULL  — owned by ~/.claude/hooks/selfcompact.sh
 #      (Stop + PostCompact hooks, threshold via `--set`, default 70%). That
 #      runs INSIDE the watched session and is the primary path. This script
 #      only carries a BACKSTOP at $COMPACT_AT (default 85%) for when the Stop
@@ -21,7 +21,7 @@
 # SAFETY — everything is typed with `tmux send-keys`, so it can only ever go
 # into an EMPTY input box; otherwise it gets appended to whatever the user is
 # mid-way through typing and submitted with it. The box is read off-screen via
-# cc-prompt-state (cc-notify plugin), exactly as auto-compact-continue.sh does.
+# cc-prompt-state (cc-notify plugin), exactly as selfcompact.sh does.
 # Unreadable box, or a pane whose title no longer matches, means we do NOTHING:
 # a missed nudge is recoverable, a mangled message is not.
 set -uo pipefail
