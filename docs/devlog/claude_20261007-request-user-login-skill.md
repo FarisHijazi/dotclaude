@@ -18,3 +18,14 @@ only when that skill loads, the way github.com/ARahim3/cachebeat does it. Sessio
 that never run `/login-watch` don't run the hook at all. `off` still deletes the
 flag file, because a loaded skill's hook stays for the rest of the session.
 Tested with fake input: no flag gives no output, flag gives the reminder.
+
+## Shortcut is ⌃⇧L in Default, ⌘⇧L elsewhere; focus is required
+
+- Read from `Preferences` → `extensions.commands`: the `Default` profile binds
+  Bitwarden `autofill_login` to `mac:Ctrl+Shift+L`; the dema and thmanyah profiles
+  use `Command+Shift+L`. ⌘⇧L and ⌘⇧B both did nothing on Default; ⌃⇧L filled and
+  logged in to the router (index.asp) on 2026-10-07.
+- Script default changed to `cmd+shift+l` (user approved the script edit).
+- Background test: Hammerspoon `event:post(chromeApp)` with Ghostty in front, ⌃⇧L
+  → fields stayed empty. Extension shortcuts need Chrome frontmost, so the short
+  focus stays.
