@@ -1,6 +1,6 @@
 ---
 name: request-user-login
-description: Get past a login wall in the user's real Chrome when the task needs it. Use this when a Claude in Chrome task can't continue without the user being signed in - a sign-in page, an expired session, Google "verify it's you", a passkey or MFA screen - or when the user asks to sign in, autofill a password or use a passkey. Typical sites are cloud consoles and billing, self-hosted dashboards, router or NAS admin pages, and SaaS accounts. Decide from the task. If the goal can be reached without signing in, skip it. If it can't, don't stop and don't just say so in chat (the user often isn't reading it) - run this skill so the user gets a macOS notification. One click on it is their full consent for the whole login; Bitwarden fills the password or presses the passkey, and Claude does every other step without seeing a secret. Also use it to alert the user whenever Claude is stuck and needs a human. Not for writing auth code or login tests, rotating keys or secrets, or keychain/OS settings.
+description: Get past a login wall in the user's real Chrome when the task needs it. Use this when a Claude in Chrome task can't continue without the user being signed in - a sign-in page, an expired session, Google "verify it's you", a passkey or MFA screen - or when the user asks to sign in, autofill a password or use a passkey. Also for terminal password prompts - sudo, ssh with a password, su, a key passphrase - which it answers through tmux. Typical sites are cloud consoles and billing, self-hosted dashboards, router or NAS admin pages, and SaaS accounts. Decide from the task. If the goal can be reached without signing in, skip it. If it can't, don't stop and don't just say so in chat (the user often isn't reading it) - run this skill so the user gets a macOS notification. One click on it is their full consent for the whole login; Bitwarden fills the password or presses the passkey, and Claude does every other step without seeing a secret. Also use it to alert the user whenever Claude is stuck and needs a human. Not for writing auth code or login tests, rotating keys or secrets, or keychain/OS settings.
 ---
 
 # request-user-login
@@ -115,6 +115,32 @@ Dismissing or ignoring a notification declines, and nothing happens.
    - **Bitwarden "Log in with passkey?" window**: run `confirm-passkey.sh`.
    - **Any other 2FA** (Touch ID, SMS, authenticator app): use "When stuck"
      below. Those need the user's hands.
+
+## Terminal passwords (sudo, ssh, su, key passphrases)
+
+The Bash tool has no terminal, so `sudo` and password `ssh` can't prompt
+there. Run the command in a tmux pane instead and let
+`scripts/type-password.sh` answer the prompt:
+
+```bash
+p=$(tmux new-window -d -P -F '#{pane_id}' 'sudo -v; sudo <command>; exec bash')
+~/.claude/skills/request-user-login/scripts/type-password.sh "$p" sudo
+tmux capture-pane -p -t "$p"      # read the result; kill the pane when done
+```
+
+- The secret comes from the macOS Keychain (generic password, service
+  `request-user-login`, account `<name>`; the user adds it once with
+  `security add-generic-password -s request-user-login -a <name> -w`), or from
+  Bitwarden with `--from bw <item>` when `bw` is unlocked (`BW_SESSION` set).
+  Use names like `sudo` or `ssh-<host>`.
+- It goes into a tmux paste buffer, never stdout or argv, so you never see it.
+- It types only when the pane's last line is a password prompt, and checks
+  again right before typing. Approval goes through `approve.sh` like a login
+  (grant `password-<name>`, or `--for`).
+- Exit codes: `0` typed and not rejected, `1` declined, `2` no prompt in the
+  pane (nothing typed), `5` typed but rejected ("Sorry, try again",
+  "Permission denied"; don't retry, run `approve.sh need`), `6` no secret
+  stored under that name (run `approve.sh need "store the <name> password"`).
 
 ## When stuck
 
