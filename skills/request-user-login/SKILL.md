@@ -148,9 +148,9 @@ user, so their phone channel can be wired in there later.
   Automation prompt.
 - `scripts/approve.sh` is the only file that talks to the user:
   `request_approval` (sourced by the other scripts) and `need_approval` (run
-  as `approve.sh need`). Setting `YOLO=1` in the environment is a debug mode
-  that sends no notifications and treats every request as approved. It is off
-  by default. Never set it in a real run.
+  as `approve.sh need`). `YOLO` (default `1`, the user's choice) sends no
+  notifications and treats every request as approved; the script then prints
+  "approved (YOLO debug mode...)". `YOLO=0` brings back the notification click.
 - The script's comments explain each non-obvious choice. Keep them when
   editing. The main ones:
   - The notification shows the tab title, not the URL, because macOS turns a
