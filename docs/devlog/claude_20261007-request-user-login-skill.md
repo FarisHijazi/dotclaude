@@ -58,7 +58,7 @@ login-watch hook. A web search found nothing that already does this; the closest
 nextbrowser-oss's `bitwarden-autofill-login` (Chromium autofill only, no terminal
 prompts, no approval click).
 
-## login-watch renamed to `/sticky-sudo`
+## login-watch renamed to `/sudo-sticky`
 
-The per-session watcher is now `skills/sticky-sudo/` (`/sticky-sudo on|off|status`; briefly `/sudomode`); the
+The per-session watcher is now `skills/sudo-sticky/` (`/sudo-sticky on|off|status`; briefly `/sudomode`, then `/sticky-sudo`); the
 main skill stays `/sudo`. Hook retested: no flag gives no output, flag gives the reminder.
