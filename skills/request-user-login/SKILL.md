@@ -128,7 +128,11 @@ p=$(tmux new-window -d -P -F '#{pane_id}' 'sudo -v; sudo <command>; exec bash')
 tmux capture-pane -p -t "$p"      # read the result; kill the pane when done
 ```
 
-- The secret comes from the macOS Keychain (generic password, service
+- If the user gave the password in chat, pipe it in with the `printf`
+  builtin (it never shows in `ps`), quoted with single quotes:
+  `printf %s '<password>' | type-password.sh "$p" sudo --from stdin`.
+  Don't ask them to store it anywhere first.
+- Otherwise the secret comes from the macOS Keychain (generic password, service
   `request-user-login`, account `<name>`; the user adds it once with
   `security add-generic-password -s request-user-login -a <name> -w`), or from
   Bitwarden with `--from bw <item>` when `bw` is unlocked (`BW_SESSION` set).

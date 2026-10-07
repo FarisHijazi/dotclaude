@@ -5,11 +5,13 @@
 # stdout, a file or argv (send-keys -l "$pw" would show it in `ps`), so the
 # caller (Claude) never sees it.
 #
-# usage: type-password.sh <tmux-pane> <name> [--from keychain|bw] [--for <grant>] [--timeout 120]
+# usage: type-password.sh <tmux-pane> <name> [--from keychain|bw|stdin] [--for <grant>] [--timeout 120]
 #   <name>  keychain: the account of a generic password with service
 #           "request-user-login" (user adds it once with
 #           `security add-generic-password -s request-user-login -a <name> -w`)
 #           bw: a Bitwarden item name or id (needs an unlocked `bw`, BW_SESSION set)
+#           stdin: the secret is piped in; use the printf builtin
+#           (printf %s '<pw>' | type-password.sh ...) so it never shows in `ps`
 # exit:  0 typed, prompt accepted | 1 declined | 2 no password prompt in the pane
 #        3 usage | 5 typed but rejected ("Sorry, try again", "Permission denied")
 #        6 secret not found
@@ -27,6 +29,7 @@ while [ $# -gt 0 ]; do
 done
 [ -n "$pane" ] && [ -n "$name" ] || { sed -n 2,16p "$0" >&2; exit 3; }
 [ -n "$grant" ] || grant="password-$name"
+[ "$from" = stdin ] && exec 3<&0 </dev/null  # hold the piped secret for later
 
 prompt_re='(password|passphrase|passcode)[^:]*: *$'
 last_line() { tmux capture-pane -p -t "$pane" | grep -v '^[[:space:]]*$' | tail -1; }
@@ -49,6 +52,7 @@ trap 'tmux delete-buffer -b "$buf" 2>/dev/null || true' EXIT
 case $from in
   keychain) security find-generic-password -s request-user-login -a "$name" -w 2>/dev/null ;;
   bw) bw get password "$name" 2>/dev/null ;;
+  stdin) cat <&3 ;;
   *) echo "unknown --from: $from" >&2; exit 3 ;;
 esac | tr -d '\n' | tmux load-buffer -b "$buf" - || true
 [ -n "$(tmux show-buffer -b "$buf" 2>/dev/null | head -c1)" ] || { echo "no secret for $name in $from" >&2; exit 6; }
