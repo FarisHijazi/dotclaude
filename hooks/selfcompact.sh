@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Auto-compact a Claude Code session when its context fills up, then tell it to
 # continue. Registered on Stop + PostCompact in settings.json; documented for
-# users in commands/auto-compact.md (KEEP THE TWO IN SYNC).
+# users in commands/selfcompact.md (KEEP THE TWO IN SYNC).
 #
 #   Stop:                  used% >= threshold  -> type /compact
 #   PostCompact trigger=manual -> type "continue ..."

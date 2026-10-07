@@ -1,5 +1,5 @@
 This skill is the user-facing half of the hook script
-`~/.claude/hooks/auto-compact-continue.sh` — every command below is that script,
+`~/.claude/hooks/selfcompact.sh` — every command below is that script,
 and it is registered on `Stop` + `PostCompact` in `~/.claude/settings.json`.
 **The two are a pair: change the script's flags or defaults and update this file
 in the same edit** (and vice versa). Design notes and test evidence:
@@ -16,7 +16,7 @@ If you genuinely need to compact right now, don't hand-roll it with tmux
 send-keys — run this one line:
 
 ```bash
-bash ~/.claude/hooks/auto-compact-continue.sh --force
+bash ~/.claude/hooks/selfcompact.sh --force
 ```
 
 That submits `/compact` into this session and, once it finishes, the
@@ -65,7 +65,7 @@ To change *when* it fires for one session (works on a session that's already
 running, from inside it or from any other terminal):
 
 ```bash
-H=~/.claude/hooks/auto-compact-continue.sh
+H=~/.claude/hooks/selfcompact.sh
 bash $H --show                              # effective threshold + where it came from
 bash $H --set 70                            # this session: compact at 70% used
 bash $H --set 0                             # this session: never auto-compact
