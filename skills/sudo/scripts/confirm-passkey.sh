@@ -20,6 +20,7 @@ done
 [ -n "$match" ] || { sed -n 2,10p "$0" >&2; exit 3; }
 
 . "$dir/approve.sh"
+# shellcheck disable=SC2034  # read by approve.sh, sourced below
 GRANT_SECONDS=0  # second factor: always ask, never reuse an earlier click
 request_approval "passkey:$match" "Use passkey" "Bitwarden passkey for $match" "$timeout" || exit 1
 

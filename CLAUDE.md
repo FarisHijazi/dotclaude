@@ -112,9 +112,10 @@ sticky `hasLoaded` first-settle flag, never on `!loading`. Full rule:
   dual-mode direct-ASGI or `TEST_SERVER_URL`, categories unit/integration/e2e/flow).
 - `/chrome`: always read `~/.claude/chrome-profiles.json` first to pick the profile.
 - Blocked by a login, an expired session, "verify it's you" or MFA in Chrome: NEVER stop and NEVER
-  just say so in chat (I'm often not reading it). Run the `request-user-login` skill right away: my
-  one click on its notification is my full consent for that whole login, so finish it. When stuck
-  on anything that needs me, run `~/.claude/skills/request-user-login/scripts/approve.sh need "<what>"`.
+  just say so in chat (I'm often not reading it). Run the `sudo` skill right away: my
+  one click on its notification is my full consent for that whole login, so finish it. It also
+  answers sudo / ssh password prompts through tmux. When stuck
+  on anything that needs me, run `~/.claude/skills/sudo/scripts/approve.sh need "<what>"`.
 
 ## Texting/emails to other humans
 
