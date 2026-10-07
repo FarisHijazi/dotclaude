@@ -29,3 +29,15 @@ Tested with fake input: no flag gives no output, flag gives the reminder.
 - Background test: Hammerspoon `event:post(chromeApp)` with Ghostty in front, ⌃⇧L
   → fields stayed empty. Extension shortcuts need Chrome frontmost, so the short
   focus stays.
+
+## type-password.sh: sudo / ssh prompts through tmux
+
+New `scripts/type-password.sh <pane> <name> [--from keychain|bw]`. Waits up to
+20 s for a `password|passphrase|passcode ...:` last line, asks approve.sh, loads
+the secret (Keychain service `request-user-login`, or `bw get password`) into a
+tmux buffer, pastes it, presses Enter, then checks for "Sorry, try again" /
+"Permission denied". Tested with fake bash prompts and throwaway Keychain items:
+right secret matched (exit 0), wrong one exit 5, missing exit 6, a plain shell
+prompt exit 2 with nothing typed. Gotcha: `capture-pane` returns the blank rows
+below the cursor, so strip blank lines before `tail`. Not yet tested on real
+sudo/ssh (needs the user's password stored in the Keychain).
