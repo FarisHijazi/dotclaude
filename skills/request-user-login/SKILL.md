@@ -56,15 +56,25 @@ Dismissing or ignoring a notification declines, and nothing happens.
 
    ```bash
    ~/.claude/skills/request-user-login/scripts/request-user-login.sh "https://app.example.com/login" --tab-id 123456 --via google
-   ~/.claude/skills/request-user-login/scripts/request-user-login.sh "https://app.example.com/login" --tab-id 123456 --keys cmd+shift+l
+   ~/.claude/skills/request-user-login/scripts/request-user-login.sh "https://app.example.com/login" --tab-id 123456 --keys ctrl+shift+l
    ```
 
-   For `--via password`, always pass `--keys cmd+shift+l` (Bitwarden's
-   autofill shortcut in every Chrome profile; it is ⌘⇧L on the Mac, not
-   Ctrl). The script's own default is still `cmd+shift+b`, so never omit
-   `--keys`. After every fill, take a screenshot. If the fields are still
-   empty, re-run once under the same `--for` (it reuses the approval); if it
-   still doesn't fill, ask the user through `approve.sh need`.
+   For `--via password`, pass Bitwarden's L shortcut for the active Chrome
+   profile (`~/.claude/chrome-profiles.json` maps the connected browser to a
+   profile). Bindings are read from each profile's `Preferences`
+   (`extensions.commands`, `autofill_login`):
+
+   | Chrome profile | `--keys` |
+   |---|---|
+   | `Default` (the personal one) | `ctrl+shift+l` (Control, not ⌘) |
+   | the other profiles | `cmd+shift+l` (the script's default) |
+
+   After every fill, take a screenshot. If the fields are still empty, retry
+   with the other modifier (`ctrl` vs `cmd`) under the same `--for`, which
+   reuses the approval. If neither fills, ask the user through
+   `approve.sh need`. The keys only work while Chrome is the front app, which
+   is why the script focuses the window for about two seconds; keys posted
+   to Chrome in the background were tested and do nothing.
 
    Always pass `--tab-id` with your Claude in Chrome tabId. It equals Chrome's
    AppleScript tab id, so the script acts on exactly your tab, even when the

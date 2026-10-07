@@ -13,12 +13,12 @@
 # accounts.google.com while logging in to chat.example.com) don't ask again.
 #
 # usage: request-user-login.sh <url-prefix> [--tab-id <claude-in-chrome tabId>] [--for <site>] [--via password|google|passkey]
-#          [--keys cmd+shift+b] [--no-submit] [--timeout 120]
+#          [--keys cmd+shift+l] [--no-submit] [--timeout 120]
 # exit:  0 filled (and submitted), or approved for --via google|passkey | 1 declined / timed out | 2 tab not found | 3 usage
 #        4 target tab not in front at send time (nothing typed)
 set -euo pipefail
 
-url="" tab_id="" site="" via=password keys="cmd+shift+b" submit=1 timeout=120
+url="" tab_id="" site="" via=password keys="cmd+shift+l" submit=1 timeout=120
 while [ $# -gt 0 ]; do
   case $1 in
     --for) site=$2; shift 2 ;;
