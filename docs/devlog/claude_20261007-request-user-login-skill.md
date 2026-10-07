@@ -41,3 +41,8 @@ right secret matched (exit 0), wrong one exit 5, missing exit 6, a plain shell
 prompt exit 2 with nothing typed. Gotcha: `capture-pane` returns the blank rows
 below the cursor, so strip blank lines before `tail`. Not yet tested on real
 sudo/ssh (needs the user's password stored in the Keychain).
+
+- Added `--from stdin` (secret held on fd 3 so approve.sh/tmux don't eat it) for
+  passwords the user gives in chat; the user does not want a Keychain step.
+  Verified for real on 2026-10-07: `sudo -k; sudo -v` → SUDO-OK, and
+  `ssh -o PubkeyAuthentication=no localhost` → logged in, both exit 0.
