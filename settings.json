@@ -5,7 +5,8 @@
   },
   "permissions": {
     "allow": [
-      "Bash(claude plugin:*)"
+      "Bash(claude plugin:*)",
+      "mcp__claude-in-chrome"
     ],
     "defaultMode": "auto"
   },
@@ -57,6 +58,16 @@
             "type": "command",
             "command": "bash \"$HOME/.claude/hooks/gsd-phase-boundary.sh\"",
             "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__claude-in-chrome__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/skills/request-user-login/scripts/login-wall-hook.sh\"",
+            "timeout": 10
           }
         ]
       }

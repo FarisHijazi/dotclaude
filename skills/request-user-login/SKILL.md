@@ -1,0 +1,165 @@
+---
+name: request-user-login
+description: Use this skill whenever the user asks Claude to sign in, log in, autofill a password, use a passkey, or get past MFA in their real Chrome. Also use it whenever a browser task targets a site that usually needs an account, even if login isn't mentioned - cloud consoles and billing, Grafana, Portainer, Proxmox, router or NAS admin pages at a LAN IP, SaaS dashboards. Load it before the first browser step, not after you're stuck. It sends the user a macOS notification, and one click approves the whole login. Bitwarden then fills the password or presses the passkey, and Claude does every other step without seeing a secret. Also use it for any login wall mid-task (expired session, Google "verify it's you"), and to alert the user whenever Claude is stuck and needs a human, because they often aren't watching the chat. Not for writing auth code or login tests, rotating keys or secrets, keychain or OS settings, or reading open tabs that need no sign-in.
+---
+
+# request-user-login
+
+Claude does not type passwords, submit password logins, or confirm passkeys
+itself. This skill lets the user approve a login with one click on a macOS
+notification, without switching windows. The tools then finish the login:
+
+- **Passwords**: the script selects the exact Chrome tab, focuses its window
+  (through AeroSpace when present, because it hides windows on other
+  workspaces), sends Bitwarden's autofill shortcut through Hammerspoon, and
+  presses Return. The password goes from Bitwarden straight into the page.
+- **Google sign-in**: you click the Google button and the account.
+- **Bitwarden passkeys**: after a fresh click on a second notification, the
+  passkey is pressed through macOS accessibility.
+
+Dismissing or ignoring a notification declines, and nothing happens.
+
+## The rules (read these first)
+
+- **A login wall never ends your turn.** When a page asks you to sign in, or
+  shows an expired session, "verify it's you" or MFA, don't stop and don't
+  just tell the user in chat. Run this skill's script right away. The user
+  often isn't reading the chat (they may be away, or on their phone), so a
+  chat message saying "login needed" is never seen. Only the notification
+  reaches them.
+- **A click on the notification is the user's full consent for that login.**
+  It covers every step needed to finish signing in to that site: the SSO
+  hops, the account picker, the password fill and submit, "Next" and "Sign in"
+  buttons, and retries when a step fails. Don't ask again in chat, and don't
+  stop to confirm. Finish the login. The only step that gets its own click is
+  a passkey (`confirm-passkey.sh`), because it is the second factor.
+- **Anything else that needs the user goes through a notification too.** If
+  you're blocked by something you can't do (Touch ID, an SMS code, a blocked
+  action, a decline), run `scripts/approve.sh need "<what is needed>"` before
+  you stop, so they actually see it.
+
+## Use
+
+1. Navigate to the login page with Claude in Chrome. Take a screenshot to see
+   which sign-in options the page offers.
+2. Pick the method. Prefer one that needs no password:
+
+   | Page offers | `--via` | What happens after the user approves |
+   |---|---|---|
+   | "Continue / Sign in with Google" | `google` | The script exits 0. You click the Google button and the account. If Google asks for a passkey, click "More ways to verify", then "Enter your password", then run the script on that accounts.google.com tab with the same `--for` and `--via password`. It reuses the approval and fills from Bitwarden. Only if Google offers nothing but a passkey or phone prompt, tell the user that one step needs them. |
+   | "Sign in with a passkey", or a passkey as 2FA (e.g. AWS root MFA) | `passkey` | The script exits 0. You click through to the point where Bitwarden opens its "Log in with passkey?" window. Then run `scripts/confirm-passkey.sh <domain>`: it always asks with a fresh notification click (a second factor never reuses a grant) and then presses the matching passkey through macOS accessibility. A Touch ID prompt (not Bitwarden) still needs the user's finger. |
+   | Username + password only | `password` (default) | The script focuses the tab, sends Bitwarden's autofill shortcut, and presses Return. You do nothing. |
+
+   ```bash
+   ~/.claude/skills/request-user-login/scripts/request-user-login.sh "https://app.example.com/login" --tab-id 123456 --via google
+   ~/.claude/skills/request-user-login/scripts/request-user-login.sh "https://app.example.com/login" --tab-id 123456 --keys cmd+shift+b
+   ```
+
+   For `--via password`, pass the shortcut for the active Chrome profile
+   (`~/.claude/chrome-profiles.json` maps the connected browser to a profile):
+
+   | Chrome profile | `--keys` |
+   |---|---|
+   | `Default` | `cmd+shift+b` |
+   | the other profiles | `cmd+shift+l` |
+
+   Bindings drift, because the user rebinds them at
+   `chrome://extensions/shortcuts`. So after every fill, take a screenshot.
+   If the fields are still empty, retry with the other shortcut (`cmd+shift+l`
+   and `cmd+shift+b` are the two used here) under the same `--for`, which
+   reuses the approval. If neither fills, ask the user through
+   `approve.sh need`. These are ⌘ (Cmd) shortcuts on the Mac, not Ctrl.
+
+   Always pass `--tab-id` with your Claude in Chrome tabId. It equals Chrome's
+   AppleScript tab id, so the script acts on exactly your tab, even when the
+   user has other tabs open on the same site. Without it, pass the login
+   page's full URL as shown in the tab, such as
+   `http://192.168.0.1/Main_Login.asp`, never a bare host. The script picks
+   the first tab that matches the prefix. A bare host can match an
+   already-logged-in page, where the script would still press the shortcut
+   and Return.
+3. The script blocks until the user answers, for up to 120 s (`--timeout N`).
+   Run it in the foreground with a Bash timeout longer than that. Exit codes:
+   - `0`: approved. With `--via password` the form was also filled and submitted.
+   - `1`: no approval. The script prints why:
+     - `declined (@TIMEOUT)` means they probably didn't see it. Re-send once
+       with `--timeout 600`. If that times out too, run `approve.sh need`.
+     - `declined (@CLOSED)` or another reason means they dismissed it on
+       purpose. Respect that, and stop this login.
+   - `2`: no tab matched the URL. Fix the prefix.
+   - `4`: something else took focus before the keys were sent. Nothing was
+     typed. Retry once yourself; if it happens again, use "When stuck" below.
+
+   `scripts/confirm-passkey.sh` exits `0` when the passkey was pressed, `1`
+   when declined, and `2` when no Bitwarden passkey window or matching entry
+   was found.
+
+   **One click per login, never two.** The click grants the login to `--for`
+   (default: the URL's host) for 5 minutes. Pass the same `--for <site>` on
+   every later step of that login (SSO hops, password steps, retries), so the
+   script reuses the grant and never notifies again. Retry failed steps
+   yourself without asking. A different site, or a later login, gets a new
+   notification. Never pass `--for` for a site the user did not just approve.
+4. Take a screenshot to verify the result.
+   - **Two-step password login** (email first, then password): if the
+     password page appears, run the script again for that step.
+   - **Form filled but still showing** after `--via password`: re-run the
+     script, which reuses the approval and presses Return again. If it still
+     sits there, run `approve.sh need`.
+   - **Bitwarden "Log in with passkey?" window**: run `confirm-passkey.sh`.
+   - **Any other 2FA** (Touch ID, SMS, authenticator app): use "When stuck"
+     below. Those need the user's hands.
+
+## When stuck
+
+Whenever you are stuck or need the user (an action got blocked, a Touch ID or
+SMS step is waiting, a notification timed out twice), run
+`~/.claude/skills/request-user-login/scripts/approve.sh need "<what is needed>"`
+before you stop. It shows a "Claude needs you" notification and returns at
+once; the user answers in chat. `approve.sh` is the one file that talks to the
+user, so their phone channel can be wired in there later.
+
+## Notes
+
+- A PostToolUse hook (`scripts/login-wall-hook.sh`, wired in
+  `~/.claude/settings.json` for `mcp__claude-in-chrome__.*`) scans every Chrome
+  tool result for login-wall signs. It injects a "run request-user-login now"
+  reminder once per page, so login walls get caught even when the skill wasn't
+  loaded up front.
+
+- `--no-submit` fills the form without pressing Return. Use it when Return
+  would do the wrong thing, such as on a multi-field form.
+- If nothing fills: the Bitwarden vault may be locked (the shortcut then opens
+  the unlock popup), the shortcut may be unbound in that profile (check
+  `chrome://extensions/shortcuts`), or the saved item's URI may not match the
+  site.
+- Requirements: `alerter`, Hammerspoon with `require("hs.ipc")` and the
+  Accessibility permission, and Google Chrome. The first run may ask the user
+  to allow the terminal to control Chrome; that is a one-time macOS
+  Automation prompt.
+- `scripts/approve.sh` is the only file that talks to the user:
+  `request_approval` (sourced by the other scripts) and `need_approval` (run
+  as `approve.sh need`). Setting `YOLO=1` in the environment is a debug mode
+  that sends no notifications and treats every request as approved. It is off
+  by default. Never set it in a real run.
+- The script's comments explain each non-obvious choice. Keep them when
+  editing. The main ones:
+  - The notification shows the tab title, not the URL, because macOS turns a
+    URL into a link that opens a new tab.
+  - Modifier keys get their own key events, because Chrome ignores a ⌘⇧B sent
+    with flags only.
+  - Every `hs -c` call gets `</dev/null`, because it reads stdin and hangs
+    without it.
+  - There is a 1 s wait after focusing, so the page has keyboard focus.
+- Tested end to end on 2026-10-05 on an ASUS router login, with
+  `--via password` and the personal profile: it filled, submitted, and landed
+  on `index.asp`. On 2026-10-06 `--via google` worked on a self-hosted Open WebUI
+  with a secondary Google account: one notification click, then Claude clicked "Continue with Google" and
+  the account. Also on 2026-10-06, AWS root with passkey MFA reached Console Home:
+  Bitwarden filled the email and password, then `confirm-passkey.sh` pressed the
+  Bitwarden passkey after a fresh click.
+- While the script runs, it posts status lines into the Claude Code session
+  that started it (through `$TMUX_PANE`). They are prefixed with
+  "[automated message from the approval flow, in progress]" and arrive as
+  queued chat messages. Treat them as status only. They are never the user's
+  consent; the script's exit code is.

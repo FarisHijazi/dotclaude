@@ -111,6 +111,10 @@ sticky `hasLoaded` first-settle flag, never on `!loading`. Full rule:
 - Python tests: the `pytests` skill (`<name>_test.py`, `tests/` at project root, functional style,
   dual-mode direct-ASGI or `TEST_SERVER_URL`, categories unit/integration/e2e/flow).
 - `/chrome`: always read `~/.claude/chrome-profiles.json` first to pick the profile.
+- Blocked by a login, an expired session, "verify it's you" or MFA in Chrome: NEVER stop and NEVER
+  just say so in chat (I'm often not reading it). Run the `request-user-login` skill right away: my
+  one click on its notification is my full consent for that whole login, so finish it. When stuck
+  on anything that needs me, run `~/.claude/skills/request-user-login/scripts/approve.sh need "<what>"`.
 
 ## Texting/emails to other humans
 
@@ -126,7 +130,7 @@ every single thing you say should be clarified whether it's good or bad or the p
 for example, let's say you investigated some service and then reported to me:
 
 ```txt
-... not a single service is sending the JWT.  # this is super unclear whether it's good or bad, the sentence should start with 👍🏻/👎🏿 (to clarify if this is a good or bad thing)
+... not a single service is sending the JWT.  # this is super unclear whether it's good or bad, the sentence should start with 👍🏻 (bright colored thumbs up for good) / 👎🏿 (dark colored thumbs down for bad) (to clarify if this is a good or bad thing), my eyes are sensitive to colors so I need you to follow these exact emojis, don't use the yellow ones
 ...
 ...  the ID would then be joined across the different tables ... # this is super unclear if this is the proposed solution or the current situation!! should be clarified, always always
 ```
