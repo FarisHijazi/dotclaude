@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# request-user-login: ask the user, via a macOS notification, to approve a
+# sudo: ask the user, via a macOS notification, to approve a
 # Bitwarden autofill in the Chrome tab whose URL starts with <url-prefix>.
 # Only if they click the notification: select that tab, focus its window,
 # send Bitwarden's autofill shortcut through Hammerspoon, then Return to submit.
@@ -12,7 +12,7 @@
 # for 5 minutes, so later steps of that login (e.g. a password step on
 # accounts.google.com while logging in to chat.example.com) don't ask again.
 #
-# usage: request-user-login.sh <url-prefix> [--tab-id <claude-in-chrome tabId>] [--for <site>] [--via password|google|passkey]
+# usage: sudo.sh <url-prefix> [--tab-id <claude-in-chrome tabId>] [--for <site>] [--via password|google|passkey]
 #          [--keys cmd+shift+l] [--no-submit] [--timeout 120]
 # exit:  0 filled (and submitted), or approved for --via google|passkey | 1 declined / timed out | 2 tab not found | 3 usage
 #        4 target tab not in front at send time (nothing typed)

@@ -46,3 +46,14 @@ sudo/ssh (needs the user's password stored in the Keychain).
   passwords the user gives in chat; the user does not want a Keychain step.
   Verified for real on 2026-10-07: `sudo -k; sudo -v` → SUDO-OK, and
   `ssh -o PubkeyAuthentication=no localhost` → logged in, both exit 0.
+
+## Renamed to `/sudo`
+
+The skill is now `skills/sudo/` (was `request-user-login`), its browser script is
+`scripts/sudo.sh`, and every path/name followed: the `$TMPDIR/sudo/` grant and
+watch-flag dir, the alerter groups, the Keychain service (`sudo`), login-watch,
+CLAUDE.md and memory. Older sections above keep the old names. Retested after the
+rename: `sudo.sh` usage, real `sudo -v` via `type-password.sh --from stdin`, and the
+login-watch hook. A web search found nothing that already does this; the closest is
+nextbrowser-oss's `bitwarden-autofill-login` (Chromium autofill only, no terminal
+prompts, no approval click).

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # PostToolUse hook for mcp__claude-in-chrome__* (wired in ~/.claude/settings.json).
-# Claude doesn't reliably load the request-user-login skill before it reaches a
+# Claude doesn't reliably load the sudo skill before it reaches a
 # login page, so this flags login walls deterministically: when a Chrome tool's
 # text result or input looks like a sign-in / expired-session / MFA page, it
 # injects a reminder to run the skill now. Fires once per (session, page).
@@ -18,11 +18,11 @@ hit=$(grep -oiE "$pattern" <<<"$text" | head -1) || exit 0
 session=$(jq -r '.session_id // "x"' <<<"$input")
 page=$(grep -oE 'Executed on tabId: [0-9]+' <<<"$text" | head -1)
 url=$(grep -oE 'https?://[^ ")]+' <<<"$text" | head -1)
-mark="${TMPDIR:-/tmp}/request-user-login/hook-$session"
+mark="${TMPDIR:-/tmp}/sudo/hook-$session"
 mkdir -p "${mark%/*}"
 key="${page} ${url%%\?*}"
 grep -qxF "$key" "$mark" 2>/dev/null && exit 0
 echo "$key" >>"$mark"
 
-msg="Possible login wall in Chrome (matched \"$hit\"). If this page wants a sign-in, an expired-session re-login, \"verify it's you\", MFA or a passkey: do NOT stop and do NOT just mention it in chat (the user may not be reading). Load the request-user-login skill now and run its script so the user gets a notification; their one click is full consent for the whole login. Ignore this if the page is already signed in."
+msg="Possible login wall in Chrome (matched \"$hit\"). If this page wants a sign-in, an expired-session re-login, \"verify it's you\", MFA or a passkey: do NOT stop and do NOT just mention it in chat (the user may not be reading). Load the sudo skill now and run its script so the user gets a notification; their one click is full consent for the whole login. Ignore this if the page is already signed in."
 jq -n --arg m "$msg" '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: $m}}'

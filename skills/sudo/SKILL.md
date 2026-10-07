@@ -1,9 +1,9 @@
 ---
-name: request-user-login
+name: sudo
 description: Get past a login wall in the user's real Chrome when the task needs it. Use this when a Claude in Chrome task can't continue without the user being signed in - a sign-in page, an expired session, Google "verify it's you", a passkey or MFA screen - or when the user asks to sign in, autofill a password or use a passkey. Also for terminal password prompts - sudo, ssh with a password, su, a key passphrase - which it answers through tmux. Typical sites are cloud consoles and billing, self-hosted dashboards, router or NAS admin pages, and SaaS accounts. Decide from the task. If the goal can be reached without signing in, skip it. If it can't, don't stop and don't just say so in chat (the user often isn't reading it) - run this skill so the user gets a macOS notification. One click on it is their full consent for the whole login; Bitwarden fills the password or presses the passkey, and Claude does every other step without seeing a secret. Also use it to alert the user whenever Claude is stuck and needs a human. Not for writing auth code or login tests, rotating keys or secrets, or keychain/OS settings.
 ---
 
-# request-user-login
+# sudo
 
 Claude does not type passwords, submit password logins, or confirm passkeys
 itself. This skill lets the user approve a login with one click on a macOS
@@ -55,8 +55,8 @@ Dismissing or ignoring a notification declines, and nothing happens.
    | Username + password only | `password` (default) | The script focuses the tab, sends Bitwarden's autofill shortcut, and presses Return. You do nothing. |
 
    ```bash
-   ~/.claude/skills/request-user-login/scripts/request-user-login.sh "https://app.example.com/login" --tab-id 123456 --via google
-   ~/.claude/skills/request-user-login/scripts/request-user-login.sh "https://app.example.com/login" --tab-id 123456 --keys ctrl+shift+l
+   ~/.claude/skills/sudo/scripts/sudo.sh "https://app.example.com/login" --tab-id 123456 --via google
+   ~/.claude/skills/sudo/scripts/sudo.sh "https://app.example.com/login" --tab-id 123456 --keys ctrl+shift+l
    ```
 
    For `--via password`, pass Bitwarden's L shortcut for the active Chrome
@@ -124,7 +124,7 @@ there. Run the command in a tmux pane instead and let
 
 ```bash
 p=$(tmux new-window -d -P -F '#{pane_id}' 'sudo -v; sudo <command>; exec bash')
-~/.claude/skills/request-user-login/scripts/type-password.sh "$p" sudo
+~/.claude/skills/sudo/scripts/type-password.sh "$p" sudo
 tmux capture-pane -p -t "$p"      # read the result; kill the pane when done
 ```
 
@@ -133,8 +133,8 @@ tmux capture-pane -p -t "$p"      # read the result; kill the pane when done
   `printf %s '<password>' | type-password.sh "$p" sudo --from stdin`.
   Don't ask them to store it anywhere first.
 - Otherwise the secret comes from the macOS Keychain (generic password, service
-  `request-user-login`, account `<name>`; the user adds it once with
-  `security add-generic-password -s request-user-login -a <name> -w`), or from
+  `sudo`, account `<name>`; the user adds it once with
+  `security add-generic-password -s sudo -a <name> -w`), or from
   Bitwarden with `--from bw <item>` when `bw` is unlocked (`BW_SESSION` set).
   Use names like `sudo` or `ssh-<host>`.
 - It goes into a tmux paste buffer, never stdout or argv, so you never see it.
@@ -150,7 +150,7 @@ tmux capture-pane -p -t "$p"      # read the result; kill the pane when done
 
 Whenever you are stuck or need the user (an action got blocked, a Touch ID or
 SMS step is waiting, a notification timed out twice), run
-`~/.claude/skills/request-user-login/scripts/approve.sh need "<what is needed>"`
+`~/.claude/skills/sudo/scripts/approve.sh need "<what is needed>"`
 before you stop. It shows a "Claude needs you" notification and returns at
 once; the user answers in chat. `approve.sh` is the one file that talks to the
 user, so their phone channel can be wired in there later.
