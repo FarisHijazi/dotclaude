@@ -125,8 +125,8 @@ user, so their phone channel can be wired in there later.
 
 ## Notes
 
-- A PostToolUse hook (`scripts/login-wall-hook.sh`, wired in
-  `~/.claude/settings.json` for `mcp__claude-in-chrome__.*`) adds a "Possible
+- A PostToolUse hook (`scripts/login-wall-hook.sh`, wired in the
+  `login-watch` skill's frontmatter for `mcp__claude-in-chrome__.*`) adds a "Possible
   login wall" note when a Chrome result looks like a login page. It works by
   keyword matching, so it also fires on pages that only mention signing in.
   It is off by default and runs only in sessions where the user typed

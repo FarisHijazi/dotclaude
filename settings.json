@@ -60,16 +60,6 @@
             "timeout": 5
           }
         ]
-      },
-      {
-        "matcher": "mcp__claude-in-chrome__.*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash -c 'in=$(cat); s=$(printf %s \"$in\" | jq -r \".session_id // empty\"); [ -f \"${TMPDIR:-/tmp}/request-user-login/watch-$s\" ] || exit 0; printf %s \"$in\" | bash \"$HOME/.claude/skills/request-user-login/scripts/login-wall-hook.sh\"'",
-            "timeout": 10
-          }
-        ]
       }
     ],
     "PreToolUse": [
