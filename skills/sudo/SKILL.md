@@ -1,7 +1,7 @@
 ---
 name: sudo
 description: Get past a login wall in the user's real Chrome when the task needs it. Use this when a Claude in Chrome task can't continue without the user being signed in - a sign-in page, an expired session, Google "verify it's you", a passkey or MFA screen - or when the user asks to sign in, autofill a password or use a passkey. Also for terminal password prompts - sudo, ssh with a password, su, a key passphrase - which it answers through tmux. Typical sites are cloud consoles and billing, self-hosted dashboards, router or NAS admin pages, and SaaS accounts. Decide from the task. If the goal can be reached without signing in, skip it. If it can't, don't stop and don't just say so in chat (the user often isn't reading it) - run this skill so the user gets a macOS notification. One click on it is their full consent for the whole login; Bitwarden fills the password or presses the passkey, and Claude does every other step without seeing a secret. Also use it to alert the user whenever Claude is stuck and needs a human. Not for writing auth code or login tests, rotating keys or secrets, or keychain/OS settings.
-argument-hint: "[force [on|off|status]]"
+argument-hint: "[hook [on|off|status]]"
 hooks:
   PostToolUse:
     - matcher: "mcp__claude-in-chrome__.*"
@@ -166,17 +166,17 @@ before you stop. It shows a "Claude needs you" notification and returns at
 once; the user answers in chat. `approve.sh` is the one file that talks to the
 user, so their phone channel can be wired in there later.
 
-## `/sudo force` (the user's per-session switch)
+## `/sudo hook` (the user's per-session switch)
 
-Only when the user typed `/sudo force ...` ($ARGUMENTS starts with `force`):
+Only when the user typed `/sudo hook ...` ($ARGUMENTS starts with `hook`):
 run this one command, confirm in one line, and stop. Never run it on your own.
 
 ```bash
 f="${TMPDIR:-/tmp}/sudo/watch-$CLAUDE_CODE_SESSION_ID"; mkdir -p "${f%/*}"
 case "${2:-on}" in                 # replace ${2:-on} with on / off / status
-  on)     touch "$f"; echo "sudo force ON for this session" ;;
-  off)    rm -f "$f"; echo "sudo force OFF" ;;
-  status) [ -f "$f" ] && echo "sudo force is ON" || echo "sudo force is OFF" ;;
+  on)     touch "$f"; echo "sudo hook ON for this session" ;;
+  off)    rm -f "$f"; echo "sudo hook OFF" ;;
+  status) [ -f "$f" ] && echo "sudo hook is ON" || echo "sudo hook is OFF" ;;
 esac
 ```
 
@@ -189,7 +189,7 @@ The flag lives in `$TMPDIR`, so it lasts for the session.
 
 ## Notes
 
-- The `/sudo force` hook works by keyword matching, so it also fires on pages
+- The `/sudo hook` watcher works by keyword matching, so it also fires on pages
   that only mention signing in. Treat it as a hint, not an order: check
   whether the task really needs the login and ignore it if not.
 

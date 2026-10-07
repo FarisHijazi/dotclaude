@@ -63,10 +63,10 @@ prompts, no approval click).
 The per-session watcher is now `skills/sudo-sticky/` (`/sudo-sticky on|off|status`; briefly `/sudomode`, then `/sticky-sudo`); the
 main skill stays `/sudo`. Hook retested: no flag gives no output, flag gives the reminder.
 
-## Watcher folded into `/sudo force`
+## Watcher folded into `/sudo hook`
 
 The separate watcher skill (login-watch → sudomode → sticky-sudo → sudo-sticky) is
 gone. Its PostToolUse hook now sits in `skills/sudo/SKILL.md` frontmatter, and the
-switch is an argument: `/sudo force [on|off|status]`. Loading `/sudo` for a normal
+switch is an argument: `/sudo hook [on|off|status]` (briefly `force`). Loading `/sudo` for a normal
 login registers the hook but it stays silent, because it still needs the session's
-`$TMPDIR/sudo/watch-<session>` flag, which only `/sudo force` creates. Retested.
+`$TMPDIR/sudo/watch-<session>` flag, which only `/sudo hook` creates. Retested.
