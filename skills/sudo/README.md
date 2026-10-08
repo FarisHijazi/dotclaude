@@ -13,4 +13,5 @@ Claude Code skill: logs in for you, never sees the secret.
 ```
 
 Needs macOS, `alerter`, Hammerspoon (`hs.ipc`, Accessibility), Chrome + Bitwarden, tmux.
+Linux (X11): `xdotool` instead, and pass `--title` (see `scripts/sudo-linux.sh`).
 `YOLO=1` (default in `approve.sh`) skips the click. Details: `SKILL.md`.

@@ -127,6 +127,18 @@ Dismissing or ignoring a notification declines, and nothing happens.
    - **Any other 2FA** (Touch ID, SMS, authenticator app): use "When stuck"
      below. Those need the user's hands.
 
+## Linux (X11, e.g. the dema VM Chrome)
+
+`sudo.sh` hands off to `scripts/sudo-linux.sh` on anything that is not macOS.
+X has no tab ids, so pass `--title "<tab title prefix>"` instead of `--tab-id`
+(read it with Claude in Chrome); it raises each Chrome window and Ctrl+Tabs
+until the window name starts with it, and types nothing otherwise. Needs
+`xdotool`; `cmd` in `--keys` is mapped to `ctrl`. Extension shortcuts such as
+Bitwarden's autofill only fire on real X key events, so pressing the shortcut
+through Claude in Chrome does nothing. `alerter` is macOS-only, so approval
+runs in YOLO mode there. Tested 2026-10-08 on the DemaOps login in the dema VM
+Chrome: filled and submitted.
+
 ## Terminal passwords (sudo, ssh, su, key passphrases)
 
 The Bash tool has no terminal, so `sudo` and password `ssh` can't prompt
