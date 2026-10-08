@@ -13,15 +13,17 @@
 # accounts.google.com while logging in to chat.example.com) don't ask again.
 #
 # usage: sudo.sh <url-prefix> [--tab-id <claude-in-chrome tabId>] [--for <site>] [--via password|google|passkey]
-#          [--keys cmd+shift+l] [--no-submit] [--timeout 120]
+#          [--keys cmd+shift+l] [--no-submit] [--timeout 120] [--title <tab title prefix>]
+# On Linux (X11) --title is required instead of --tab-id: see sudo-linux.sh.
 # exit:  0 filled (and submitted), or approved for --via google|passkey | 1 declined / timed out | 2 tab not found | 3 usage
 #        4 target tab not in front at send time (nothing typed)
 set -euo pipefail
 
-url="" tab_id="" site="" via=password keys="cmd+shift+l" submit=1 timeout=120
+url="" tab_id="" title="" site="" via=password keys="cmd+shift+l" submit=1 timeout=120
 while [ $# -gt 0 ]; do
   case $1 in
     --for) site=$2; shift 2 ;;
+    --title) title=$2; shift 2 ;;
     --tab-id) tab_id=$2; shift 2 ;;
     --via) via=$2; shift 2 ;;
     --keys) keys=$2; shift 2 ;;
@@ -40,6 +42,8 @@ case $via in
   passkey) approve="Use passkey" ;;
   *) echo "unknown --via: $via" >&2; exit 3 ;;
 esac
+
+[ "$(uname)" = Darwin ] || exec "$(dirname "$0")/sudo-linux.sh" "$url" "$title" "$site" "$via" "$approve" "$keys" "$submit" "$timeout"
 
 # chrome_tab find|select: print the title (or URL, if the title is empty) of
 # the target tab, or nothing if there is none. The target is --tab-id when

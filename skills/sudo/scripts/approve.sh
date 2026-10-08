@@ -18,6 +18,9 @@ tell_session() {
   tmux send-keys -t "$TMUX_PANE" Enter 2>/dev/null || true
 }
 
+# File mtime in epoch seconds: BSD stat on macOS, GNU stat elsewhere.
+mtime() { stat -f %m "$1" 2>/dev/null || stat -c %Y "$1"; }
+
 GRANT_SECONDS=300
 GRANT_DIR=${TMPDIR:-/tmp}/sudo
 # Debug only: YOLO=1 skips every notification and treats each request as
@@ -27,8 +30,8 @@ YOLO=${YOLO:-1}
 request_approval() {
   local site=$1 action=$2 title=$3 timeout=$4 grant answer
   grant="$GRANT_DIR/$site"
-  if [ -f "$grant" ] && [ $(($(date +%s) - $(stat -f %m "$grant"))) -lt "$GRANT_SECONDS" ]; then
-    echo "using approval for $site from $(($(date +%s) - $(stat -f %m "$grant")))s ago"
+  if [ -f "$grant" ] && [ $(($(date +%s) - $(mtime "$grant"))) -lt "$GRANT_SECONDS" ]; then
+    echo "using approval for $site from $(($(date +%s) - $(mtime "$grant")))s ago"
     tell_session "[automated message from the approval flow, in progress] reusing the user's approval for $site ($action)"
     return 0
   fi
