@@ -131,9 +131,8 @@ every single thing you say should be clarified whether it's good or bad or the p
 for example, let's say you investigated some service and then reported to me:
 
 ```txt
-... not a single service is sending the JWT.  # this is super unclear whether it's good or bad, the sentence should start with 👍🏻 (bright colored thumbs up for good) / 👎🏿 (dark colored thumbs down for bad) (to clarify if this is a good or bad thing), my eyes are sensitive to colors so I need you to follow these exact emojis, don't use the yellow ones
-...
-...  the ID would then be joined across the different tables ... # this is super unclear if this is the proposed solution or the current situation!! should be clarified, always always
+... not a single service is sending the JWT.  # this is super unclear whether it's good or bad, the sentence should start with 🟢 for good 🟡 for nitpick and 🔴 for bad
+...  the ID would then be joined across the different tables ... # this is super unclear if this is the proposed solution or the current situation!! should be clarified, always always, clarify with something like "CURRENT: ..." and "PROPOSED: ..."
 ```
 
 ## Chat output format
