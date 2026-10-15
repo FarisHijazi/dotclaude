@@ -10,7 +10,7 @@
     ],
     "defaultMode": "auto"
   },
-  "model": "opus[1m]",
+  "model": "fable",
   "hooks": {
     "SessionStart": [
       {
@@ -182,8 +182,15 @@
         "source": "github",
         "repo": "cloudflare/skills"
       }
+    },
+    "pstack-claude": {
+      "source": {
+        "source": "github",
+        "repo": "michael-denyer/pstack-claude"
+      }
     }
   },
+  "feedbackDrafts": "off",
   "alwaysThinkingEnabled": true,
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
