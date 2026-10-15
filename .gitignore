@@ -45,6 +45,8 @@
 /skills/remotion*
 # Symlink into a private local project — never track.
 /skills/handsfree
+# claude.ai-synced skill cache (vendor copies of xlsx/pptx/docx/pdf skills), regenerated per machine.
+/skills/synced/
 # Local account-setup notes (real profile names); public skill is SKILL.md only.
 /skills/gws/README.md
 /skills/*-it-prep/
