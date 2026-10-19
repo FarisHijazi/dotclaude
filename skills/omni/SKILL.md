@@ -59,8 +59,12 @@ rather than paraphrasing names or numbers.
   have no API, so they are absent; deleted Basecamp items can linger.
 - A query can fail with `vector_embedding_error … timeout` while a big re-embed is running
   on the GPU. Retry, or fall back to `--ratio 0` (keyword only, no embedding needed).
-- `omni: command not found`: the CLI is installed from the repo with
-  `uv tool install --editable ~/Projects/omni` and reads `~/Projects/omni/.env`
-  (`MEILI_URL`, `MEILI_MASTER_KEY`). It only works on the home LAN / tailnet.
+- **What this machine can see depends on its key.** Each machine has a read-only key in
+  `~/.config/omni/search.env` scoped to one index: personal machines see everything, a work VM
+  may see only its employer's partition (e.g. just Basecamp). `omni status` shows the sources
+  and counts available here; don't promise a source it doesn't list.
+- `omni: command not found` means this machine was never given access. Say so and stop; don't
+  try to install it or hunt for keys. Access is granted from the omni repo with
+  `scripts/install-client.sh <host>`.
 - Web UI, code, ingest and
   architecture: `~/Projects/omni/CLAUDE.md`.
