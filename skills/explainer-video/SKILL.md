@@ -80,10 +80,12 @@ to read text or imagine a mechanism, the scene failed.
 Every node gets a shape that says what it is, and a real logo when it is a real product. Never a row of identical
 rectangles.
 
-- **Libraries on disk.** `icons/` holds Simple Icons (`brands/svg`, about 3,400 product logos with brand colours in
-  `brands/simple-icons.json`), Lucide (`lucide`, about 2,200 line icons), Tabler (`tabler/outline` and `tabler/filled`,
-  about 6,200) and Devicon (`devicon/svg/<tool>/`, about 580 dev tools in full colour). `icons/fetch.sh` downloads them
-  (they are git-ignored, about 150 MB), and `icons/find.sh <word>…` lists matching files.
+- **Iconify has every open icon.** It serves about 275k icons from every open set through one API, so search there
+  first: `curl 'https://api.iconify.design/search?query=redis&prefixes=logos,devicon,simple-icons'`, then fetch
+  `https://api.iconify.design/<set>/<name>.svg`. `logos` has full-colour product marks (`logos:redis-icon`), and `lucide`
+  or `tabler` have generic shapes (`lucide:database`). `icons/find.sh <word>` runs the search.
+- **Offline copies.** `icons/fetch.sh` downloads Simple Icons, Lucide, Tabler and Devicon into `icons/` (git-ignored,
+  about 150 MB) for work without network.
 - **Use them inline.** Read the SVG and paste its paths into a component, so the render needs no network. Simple Icons
   are one `path` in a 24×24 box, filled with the brand hex. Draw a near-black brand (GitHub, Vercel, Next.js) white on a
   dark stage.
@@ -102,7 +104,7 @@ rectangles.
   | Process boundaries | Rings. |
 
   The Doomscroll renderer's `shapeOf` and `SHAPES` in `renderer/remotion/Explainer.tsx` implement this table as SVG
-  outlines.
+  outlines, and its `src/logos.ts` shows how to pick a logo from Iconify.
 
 ## Scenes to pick from
 

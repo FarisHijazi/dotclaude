@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# Lists icon files whose name matches every word given, e.g. `find.sh database` or `find.sh postgres`.
+# Searches every open icon set on Iconify, e.g. `find.sh postgres` or `find.sh database lucide,tabler`.
+# Fetch one with: curl https://api.iconify.design/<set>/<name>.svg
 set -euo pipefail
-cd "$(dirname "$0")"
-[ -d brands ] || ./fetch.sh >/dev/null
-files=$(find brands/svg lucide tabler devicon/svg -name '*.svg' | sort)
-for word in "$@"; do files=$(grep -i -- "$word" <<<"$files" || true); done
-head -60 <<<"$files"
+query=${1:?usage: find.sh <word> [sets]}
+sets=${2:-logos,devicon,simple-icons,lucide,tabler}
+curl -fsS "https://api.iconify.design/search?query=$(printf %s "$query" | jq -sRr @uri)&prefixes=$sets&limit=60" | jq -r '.icons[]'
