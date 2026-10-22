@@ -103,9 +103,6 @@ commands/web2-vuln-classes/SKILL.md
 commands/web3-audit/SKILL.md
 
 
-# explainer-video icon libraries: ~150 MB of downloaded SVGs, re-created by icons/fetch.sh.
-/skills/explainer-video/icons/*
-!/skills/explainer-video/icons/*.sh
 
 # Installed from skills.sh (npx skills add doomscroll-build/doomscroll-plugin -g), not tracked here.
 /skills/doomscroll-video/
