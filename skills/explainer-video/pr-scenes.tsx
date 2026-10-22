@@ -1,4 +1,4 @@
-// Reference Remotion primitives for PR explainers (see "PR explainers" in SKILL.md).
+// Reference Remotion primitives for PR explainers (see pr-walkthrough.md next to this file).
 // Copy this file into the video project and feed it the PR's real components; never ship the example data.
 // Everything is drawn in one 1080x1920 SVG so node coordinates are canvas pixels. Keep nodes, badges and
 // labels inside SAFE (the feed's overlay-safe box) and captions inside the caption band.

@@ -4,12 +4,12 @@ Shared by every video skill. Read `../SKILL.md` first for the craft rules this i
 use the installed official skills through `remotion-best-practices` (create, captions, markup, render, maps, 3d).
 
 Reference implementation (plain paths, read when useful):
-`~/Projects/business-nofomo/projects/youtube-stories/tools/remotion/README.md` (compositions, props, traps) and its
+`<story-repo>/projects/youtube-stories/tools/remotion/README.md` (compositions, props, traps) and its
 `src/` (`Explainer3D.tsx`, `three/`, `three/poly/`, `AnimatedMap.tsx`, `Timeline.tsx`, `Counter.tsx`, `BarChart.tsx`,
 `CameraObscura.tsx`, `ElephantClock.tsx`), `scripts/render_many.mjs`, `scripts/stills.mjs`, and
 `../render_on_gpu.sh`. Sources: devlogs `claude_2026-10-14-ep09-ep10-motion-pass.md`, `claude_2026-10-19-motion-taste-skills.md`,
 `claude_2026-10-21-3d-explainer-pilot.md`, `claude_2026-10-21-gpu-render-llm.md`,
-`claude_2026-10-22-polysoldier-format.md` in `~/Projects/business-nofomo/docs/devlog/`.
+`claude_2026-10-22-polysoldier-format.md` in `<story-repo>/docs/devlog/`.
 
 ## Setup
 
