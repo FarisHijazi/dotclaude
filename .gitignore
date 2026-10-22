@@ -102,3 +102,7 @@ commands/web2-recon/SKILL.md
 commands/web2-vuln-classes/SKILL.md
 commands/web3-audit/SKILL.md
 
+
+# explainer-video icon libraries: ~150 MB of downloaded SVGs, re-created by icons/fetch.sh.
+/skills/explainer-video/icons/*
+!/skills/explainer-video/icons/*.sh

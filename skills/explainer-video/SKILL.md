@@ -68,12 +68,41 @@ to read text or imagine a mechanism, the scene failed.
 - **Every table becomes an animation.** Each row of a failure / comparison / alternatives table is an animated
   before/after mini-story; end with a camera pull-back to a grid of all panels.
 - **Abstract rules get a wordless story** (a bad actor tries, the rule stops it, nothing downstream notices).
-- **Fewer squares.** Round icon nodes with glow, curved links, cylinders for storage, dot clouds for fleets, rings for
-  process boundaries. Boxes only for code/data snippets.
+- **Fewer squares.** Shaped nodes with real logos (see Icons and shapes), glow and curved links. Boxes only for
+  code/data snippets.
 - **Explain differences by behaviour.** Similar things (e.g. storage streams) each *behave* differently on screen: one
   fills and drops its oldest, one keeps only the latest per key, one flashes and vanishes unstored.
 - **Truthful animation only.** Verify a mechanism exists before animating it, even when the requester suggests it, and
   say so when their example doesn't match the system. Mark plans as plans.
+
+## Icons and shapes
+
+Every node gets a shape that says what it is, and a real logo when it is a real product. Never a row of identical
+rectangles.
+
+- **Libraries on disk.** `icons/` holds Simple Icons (`brands/svg`, about 3,400 product logos with brand colours in
+  `brands/simple-icons.json`), Lucide (`lucide`, about 2,200 line icons), Tabler (`tabler/outline` and `tabler/filled`,
+  about 6,200) and Devicon (`devicon/svg/<tool>/`, about 580 dev tools in full colour). `icons/fetch.sh` downloads them
+  (they are git-ignored, about 150 MB), and `icons/find.sh <word>…` lists matching files.
+- **Use them inline.** Read the SVG and paste its paths into a component, so the render needs no network. Simple Icons
+  are one `path` in a 24×24 box, filled with the brand hex. Draw a near-black brand (GitHub, Vercel, Next.js) white on a
+  dark stage.
+- **Pick the shape from the role.** These are the defaults:
+
+  | Role | Shape |
+  |---|---|
+  | Databases, caches and storage | Cylinders. |
+  | People and devices | Round pills or circles. |
+  | Services, workers and AI | Hexagons. |
+  | Queues and streams | Stacks. |
+  | Clients and browsers | Windows with a title bar. |
+  | Code, files and config | Folded pages. |
+  | Third parties | Dashed outlines. |
+  | Fleets | Dot clouds. |
+  | Process boundaries | Rings. |
+
+  The Doomscroll renderer's `shapeOf` and `SHAPES` in `renderer/remotion/Explainer.tsx` implement this table as SVG
+  outlines.
 
 ## Scenes to pick from
 
