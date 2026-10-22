@@ -31,6 +31,11 @@ what the repo ships (best-practices, create, captions, markup, render, studio, .
 - **Feed overlays (portrait):** if the video plays in a feed with a bottom info panel and a right action rail, keep
   essential content inside x160–820, y220–1120 and captions in y1180–1300; reserve the bottom 600 px and right 180 px.
   Check frames in a 390 × 844 viewport with `object-fit: cover`. Reflow scenes rather than shrinking text.
+- **Chapter progress line (always):** split the video into 3–6 chapters you choose from its story (e.g. Context →
+  Before → The change → After → Blast radius → Decision; merge neighbouring scenes that play the same role). Show
+  `ChapterBar` from `pr-scenes.tsx` for the whole video, just above the captions: one segment per chapter sized by its
+  length and filling as it plays, the current chapter's name in that chapter's own color (it pops when the chapter
+  starts), and the time left. Every chapter gets a distinct color, and the scene's kicker uses it too.
 - **Verify** with ffprobe: expected width/height, duration, and an audio stream. Check one still per scene with a
   caption on screen for clipped text and overlaps.
 - **PR explainers:** H.264 ~512 kbps + AAC 64 kbps, under 10 MB:
@@ -42,6 +47,14 @@ what the repo ships (best-practices, create, captions, markup, render, studio, .
 **YouTube-explainer level (3Blue1Brown, Fern), never PowerPoint.** Every movement explains something. If the viewer has
 to read text or imagine a mechanism, the scene failed.
 
+- **The video explains, the voice only comments (owner's rule, 2026-10-22).** You have a bias toward explaining with
+  words, on-screen text and voice; fight it. The diagrams, components and their motion carry the explanation; narration
+  is short, present tense, and names what is moving right now (≤ 12 words per beat, ~70 words a minute of video). If a
+  sentence explains something the animation could show, cut the sentence and animate it.
+- **Never a blank or text-only screen while the narrator talks.** No title card, text wall, bullet list or empty stage
+  under narration, not even at the start: open mid-action (a request already flying). The real components stay on
+  screen the whole video; when nothing new happens, they at least sit there with data still flowing between them.
+  Keep the stretches where the visuals are idle as short as possible.
 - **Show, don't narrate.** The best beat teaches what the narration never says: a crashed worker visibly replaced by a
   new one flying into its slot says "it self-heals" without a word.
 - **Graphs, not lines.** Never a left-to-right chain of boxes. Draw the **whole architecture** as a graph (hub,
@@ -77,6 +90,33 @@ Each is a graph with motion, not a slide.
 9. **Before → after:** the old architecture transforms in place into the new one.
 10. **Alternatives:** why not X, shown as jobs X can't absorb.
 11. **What's next:** roadmap steps that visibly remove the remaining weak spots.
+
+## PR explainers: help the reviewer decide
+
+**Only for videos about a pull request or diff.** Other explainers skip the three acts, the decision line and the
+spotlight; numbered sequence steps still help any video that walks a flow.
+
+A PR video exists so a reviewer can decide whether to merge. It is not a tour of how the system works; a video that
+only explains the architecture has failed. Reviewer's words: "highlight the blast radius and highlight the change, cuz
+sometimes the entire video is just 'an explanation of how things work'".
+
+1. **Now** (~20% of runtime): current behaviour, only the components the PR touches and their direct neighbours.
+2. **The change**, highlighted on the *same* diagram: changed nodes/edges glow with a CHANGED / NEW / REMOVED tag,
+   untouched ones dim, before transforms into after in place.
+3. **Blast radius**: rings spread from the changed node and light exactly what they reach (callers, stored data, users,
+   config, deploy/migration): red AT RISK, amber TOUCHED, grey SAFE. If nothing is reachable, the rings stop at the
+   change and the narration says so.
+
+- **State the decision** in act 2 or 3, narrated and captioned: "The decision: merging means you accept <risk> to gain
+  <benefit>", or "No real risk here: <why>". Risks come from the patch (changed contract, migration, auth check,
+  removed fallback, code every user hits); never invent one.
+- **Spotlight where the decision lies:** dim everything, a pulsing ring and DECISION tag on the exact component, file
+  or function (the hole includes its label), held ≥ 2 s.
+- **Number every sequence:** whenever narration walks a flow (frontend → auth → backend → database), each hop gets a
+  step badge 1, 2, 3… that pops on its arrow in order as the packet rides it and stays for the scene.
+- `pr-scenes.tsx` next to this file has the primitives (`ActTitle`, `NodeDot` tones, `StepFlow`, `BlastRings` +
+  `blastTone`, `DecisionSpotlight`, `Caption`) laid out inside the feed's overlay-safe box. Copy it into the project
+  and feed it the PR's real components.
 
 ## Content rules
 
