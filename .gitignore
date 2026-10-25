@@ -106,3 +106,4 @@ commands/web3-audit/SKILL.md
 
 # Installed from skills.sh (npx skills add doomscroll-build/doomscroll-plugin -g), not tracked here.
 /skills/doomscroll-video/
+__pycache__/
