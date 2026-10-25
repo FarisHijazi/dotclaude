@@ -50,3 +50,10 @@ Chrome did not expose its extension popup through AT-SPI, even after installing
   `confirm-passkey.sh accounts.google.com` run immediately with no external retry
   (`popup closed`), ending on myaccount.google.com. The screenshots showed the Google loading state
   and "Verifying it's you".
+
+## Follow-up: parent relying party (second Linux VM)
+
+On a second Linux VM the Google passkey is a Bitwarden item with a custom name; its card shows the relying
+party `google.com`, not `accounts.google.com`, so the exact match failed closed (exit 2). The helper
+now tries the exact domain, then each parent that still has a dot (WebAuthn allows a registrable
+parent as rpId), and still requires exactly one match at that level. 24 tests.

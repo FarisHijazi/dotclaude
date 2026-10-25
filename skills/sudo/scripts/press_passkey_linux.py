@@ -56,13 +56,17 @@ def target_point(tsv, domain):
         raise ValueError("unexpected authentication layout")
     footer = [int(line[0]["top"]) for line in lines if text(line).startswith("Use your device or hardware key")]
     limit = min(footer) if footer else float("inf")
-    matches = [
-        line for line in lines
-        if text(line).casefold() == domain
-        and bottom(instructions[0]) < int(line[0]["top"]) < limit
-    ]
+    entries = [line for line in lines if bottom(instructions[0]) < int(line[0]["top"]) < limit]
+    # A passkey's relying party may be a parent of the page's host (accounts.google.com
+    # uses google.com), and Bitwarden shows it under a custom item name. Try the exact
+    # domain first, then each parent that still has a dot, never a bare TLD.
+    labels = domain.split(".")
+    for candidate in (".".join(labels[i:]) for i in range(len(labels) - 1)):
+        matches = [line for line in entries if text(line).casefold() == candidate]
+        if matches:
+            break
     if len(matches) != 1 or min(float(w["conf"]) for w in matches[0]) < 80:
-        raise ValueError("no unique high-confidence passkey entry matching the exact domain")
+        raise ValueError("no unique high-confidence passkey entry matching the domain")
     words = matches[0]
     left = min(int(w["left"]) for w in words)
     right = max(int(w["left"]) + int(w["width"]) for w in words)

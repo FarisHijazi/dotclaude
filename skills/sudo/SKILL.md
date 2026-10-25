@@ -167,8 +167,10 @@ The Linux helper needs Python 3, `xdotool`, `xprop`, `scrot`, and `tesseract`
 with English language data. It validates Bitwarden's exact Chrome extension
 window class, title, and popup role, then OCRs only that window with upstream
 Tesseract TSV output, twice, so a list that is still re-rendering is never
-clicked. It clicks one high-confidence exact domain under the English
-authentication heading, then waits for Bitwarden to close the popup, which is
+clicked. It clicks the one high-confidence entry line equal to the domain, or,
+if none, to its nearest parent domain (a passkey for `google.com` is valid on
+`accounts.google.com`, and Bitwarden shows that site under a custom item name),
+under the English authentication heading, then waits for Bitwarden to close the popup, which is
 how it confirms the choice was taken. Exit codes: 0 pressed and the popup
 closed; 2 nothing pressed (no unique popup, entry or heading, uncertain OCR, or
 lost focus); 5 pressed but the popup stayed open. A locked vault, a

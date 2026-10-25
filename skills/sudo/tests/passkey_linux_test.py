@@ -74,6 +74,15 @@ def test_exact_domain_is_selected():
     assert passkey.target_point(tsv(), "example.com") == (55, 126)
 
 
+def test_parent_relying_party_is_selected_for_a_subdomain():
+    assert passkey.target_point(tsv("example.com"), "accounts.example.com") == (55, 126)
+
+
+def test_exact_domain_beats_parent_relying_party():
+    output = tsv("example.com", duplicate=True).replace("\texample.com\r\n", "\taccounts.example.com\r\n", 1)
+    assert passkey.target_point(output, "accounts.example.com") == (55, 126)
+
+
 def test_domain_substrings_are_rejected():
     for domain in ("notexample.com", "example.com.evil.test", "user@example.com"):
         rejects(lambda: passkey.target_point(tsv(domain), "example.com"))
