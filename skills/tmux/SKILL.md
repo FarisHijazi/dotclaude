@@ -23,7 +23,7 @@ scriptable. Target format is `session:window.pane` (e.g. `mysess:0.0`);
 ## How these sessions are created (naming you'll see)
 
 Claude Code sessions here are launched by the `tcc()` shell function (see
-@~/.bash_aliases) — one Claude per tmux session. Knowing the scheme lets you
+@~/.claude/scripts/claude-shell.sh) — one Claude per tmux session. Knowing the scheme lets you
 identify a session two ways:
 
 - **Session name = the project.** `tcc` names the session `<cwd-basename>-<N>`,

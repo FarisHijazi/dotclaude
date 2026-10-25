@@ -36,6 +36,7 @@
 !/memory/
 !/scripts/
 !/skills/
+!/tests/
 
 # --- 4. Carve-outs inside the directories above ---------------------------
 # GSD framework: installed by its updater, not authored here.

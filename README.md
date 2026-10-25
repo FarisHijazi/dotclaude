@@ -30,6 +30,13 @@ keep `get-shit-done/`, `skills/gsd-*`, `skills/handsfree`, `skills/gws/README.md
 `**/.cc-convos/`, and `*.local.*` out of the public repo. See `docs/devlog/claude_2026-07-29-whitelist-gitignore.md`
 (deliberately a plain path, not an `@` include).
 
+### Shell commands (`tcc` and friends)
+
+`scripts/claude-shell.sh` holds `cc`, `tcc`, `tcodex`, `topencode`, `tcca`,
+`tls` and `tmux-restore` (bash and zsh). The dotfiles repo's `.bash_aliases`
+sources it when it exists; the full behaviour is documented there, in
+`docs/tmux-and-claude-sessions.md`. Tests: `uv run --with pytest pytest tests/`.
+
 ### Driving the TUI from a script
 
 Two settings a running session will not re-read: `theme` and the per-session
