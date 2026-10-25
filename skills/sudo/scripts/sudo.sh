@@ -15,16 +15,21 @@
 # usage: sudo.sh <url-prefix> [--tab-id <claude-in-chrome tabId>] [--for <site>] [--via password|google|passkey]
 #          [--keys cmd+shift+l] [--no-submit] [--timeout 120] [--title <tab title prefix>]
 # On Linux (X11) --title is required instead of --tab-id: see sudo-linux.sh.
+# --window-id ID --click X,Y --via google|passkey clicks a caller-verified login
+# button instead of filling or submitting a password. Coordinates are window-relative.
 # exit:  0 filled (and submitted), or approved for --via google|passkey | 1 declined / timed out | 2 tab not found | 3 usage
 #        4 target tab not in front at send time (nothing typed)
+#        5 --click sent, but the window did not change; check the printed screenshots
 set -euo pipefail
 
-url="" tab_id="" title="" site="" via=password keys="cmd+shift+l" submit=1 timeout=120
+url="" tab_id="" title="" site="" via=password keys="cmd+shift+l" submit=1 timeout=120 window_id="" click=""
 while [ $# -gt 0 ]; do
   case $1 in
     --for) site=$2; shift 2 ;;
     --title) title=$2; shift 2 ;;
     --tab-id) tab_id=$2; shift 2 ;;
+    --window-id) window_id=$2; shift 2 ;;
+    --click) click=$2; shift 2 ;;
     --via) via=$2; shift 2 ;;
     --keys) keys=$2; shift 2 ;;
     --no-submit) submit=0; shift ;;
@@ -43,7 +48,14 @@ case $via in
   *) echo "unknown --via: $via" >&2; exit 3 ;;
 esac
 
-[ "$(uname)" = Darwin ] || exec "$(dirname "$0")/sudo-linux.sh" "$url" "$title" "$site" "$via" "$approve" "$keys" "$submit" "$timeout"
+if [ -n "$click$window_id" ]; then
+  [[ $window_id =~ ^[0-9]+$ && $click =~ ^[0-9]+,[0-9]+$ ]] && [ -n "$title" ] || {
+    echo "native click needs --window-id ID --click X,Y --title <prefix>" >&2; exit 3;
+  }
+  [ "$via" != password ] || { echo "native click needs --via google or passkey; no autofill is performed" >&2; exit 3; }
+fi
+[ "$(uname)" = Darwin ] || exec "$(dirname "$0")/sudo-linux.sh" "$url" "$title" "$site" "$via" "$approve" "$keys" "$submit" "$timeout" "$window_id" "$click"
+[ -z "$click" ] || { echo "--click is supported only on Linux X11" >&2; exit 3; }
 
 # chrome_tab find|select: print the title (or URL, if the title is empty) of
 # the target tab, or nothing if there is none. The target is --tab-id when

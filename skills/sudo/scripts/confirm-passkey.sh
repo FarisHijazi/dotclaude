@@ -5,24 +5,31 @@
 # press the passkey entry whose text contains <match> (e.g. the site's
 # domain). Works only for Bitwarden passkeys; a Touch ID prompt needs a finger.
 #
-# usage: confirm-passkey.sh <match> [--timeout 120]
+# usage: confirm-passkey.sh <match> [--timeout 120] [--wait 20]
+# --wait (Linux): seconds to keep looking for the loaded popup before giving up.
 # exit:  0 pressed | 1 declined / timed out | 2 Bitwarden window or entry not found | 3 usage
+#        5 (Linux) pressed, but the popup stayed open; check the printed screenshots
 set -euo pipefail
 dir=$(cd "$(dirname "$0")" && pwd)  # absolute: hs resolves dofile paths from its own cwd
-match="" timeout=120
+match="" timeout=120 wait=20
 while [ $# -gt 0 ]; do
   case $1 in
     --timeout) timeout=$2; shift 2 ;;
+    --wait) wait=$2; shift 2 ;;
     -*) echo "unknown flag: $1" >&2; exit 3 ;;
     *) match=$1; shift ;;
   esac
 done
-[ -n "$match" ] || { sed -n 2,10p "$0" >&2; exit 3; }
+[ -n "$match" ] || { sed -n 2,12p "$0" >&2; exit 3; }
 
 . "$dir/approve.sh"
 # shellcheck disable=SC2034  # read by approve.sh, sourced below
 GRANT_SECONDS=0  # second factor: always ask, never reuse an earlier click
 request_approval "passkey:$match" "Use passkey" "Bitwarden passkey for $match" "$timeout" || exit 1
+
+if [ "$(uname)" != Darwin ]; then
+  exec python3 "$dir/press_passkey_linux.py" "$match" "$wait"
+fi
 
 # Lua strings: escape backslashes and quotes in the match text.
 m=${match//\\/\\\\}; m=${m//\"/\\\"}

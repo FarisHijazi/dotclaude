@@ -12,6 +12,7 @@
 set -euo pipefail
 
 url=$1 title=$2 site=$3 via=$4 approve=$5 keys=$6 submit=$7 timeout=$8
+window_id=${9:-} click=${10:-}
 [ -n "$title" ] || { echo "Linux needs --title <tab title prefix> (X has no tab ids)" >&2; exit 3; }
 command -v xdotool >/dev/null || { echo "xdotool not installed (apt install xdotool)" >&2; exit 3; }
 export DISPLAY=${DISPLAY:-:0} XAUTHORITY=${XAUTHORITY:-$HOME/.Xauthority}
@@ -39,6 +40,9 @@ select_tab() {
 
 . "$(dirname "$0")/approve.sh"
 request_approval "$site" "$approve" "$title" "$timeout" || exit 1
+if [ -n "$click" ]; then
+  exec python3 "$(dirname "$0")/native_click_linux.py" "$window_id" "$title" "$click"
+fi
 [ "$via" = password ] || { echo "approved: $via"; exit 0; }
 
 select_tab || { echo "no Chrome tab titled '$title' on $DISPLAY: $url" >&2; exit 2; }

@@ -127,17 +127,67 @@ Dismissing or ignoring a notification declines, and nothing happens.
    - **Any other 2FA** (Touch ID, SMS, authenticator app): use "When stuck"
      below. Those need the user's hands.
 
-## Linux (X11, e.g. the work-b VM Chrome)
+## Linux (X11)
 
 `sudo.sh` hands off to `scripts/sudo-linux.sh` on anything that is not macOS.
-X has no tab ids, so pass `--title "<tab title prefix>"` instead of `--tab-id`
-(read it with Claude in Chrome); it raises each Chrome window and Ctrl+Tabs
-until the window name starts with it, and types nothing otherwise. Needs
-`xdotool`; `cmd` in `--keys` is mapped to `ctrl`. Extension shortcuts such as
-Bitwarden's autofill only fire on real X key events, so pressing the shortcut
-through Claude in Chrome does nothing. `alerter` is macOS-only, so approval
-runs in YOLO mode there. Tested 2026-10-08 on the Work-BOps login in the work-b VM
-Chrome: filled and submitted.
+For password autofill, pass `--title "<tab title prefix>"` instead of `--tab-id`.
+Read the title with Claude in Chrome. The script raises each Chrome window and
+Ctrl+Tabs until its title starts with the prefix. It types nothing otherwise.
+Needs `xdotool`; `cmd` in `--keys` maps to `ctrl`. Bitwarden's extension shortcut
+needs real X key events, not CDP events.
+
+For a login button outside browser automation, first verify the destination and
+button in a screenshot. Pass the numeric X11 window ID, its title prefix, and
+window-relative coordinates. Coordinates exclude the window-manager title bar.
+For example, a Google verification popup's **Next** button can be clicked with:
+
+```bash
+~/.claude/skills/sudo/scripts/sudo.sh 'https://accounts.google.com/' \
+  --via google --for app.example.com --title 'Sign in' \
+  --window-id 123456 --click 320,450
+```
+
+Use the actual title and coordinates from that popup. Use `--for` only for the
+login already approved by the user. This mode performs one native click, never
+password autofill or Return. It requires an exact Chrome browser window class,
+a matching title, focus, in-bounds coordinates, and unchanged window geometry.
+It does not verify the URL; the caller must verify it before requesting the click.
+`--window-id` and `--click` must be supplied together, with `--via google` or
+`--via passkey`. These flags are Linux-only. It screenshots the window just
+before the click (after the pointer moved, so a hover highlight doesn't count)
+and again for up to 10 s after it. It exits 0 once the window visibly changes
+or closes, and 5 if nothing changed. It prints the folder holding
+`before.png` and `after.png`: Read `after.png` to check where the click led.
+
+For Bitwarden passkeys, click the page's passkey button, then run
+`scripts/confirm-passkey.sh <domain>` straight away. It keeps looking for the
+loaded **Log in with passkey?** window for up to 20 s (`--wait N`), because the
+popup opens a moment after the page's button and fills its list later still.
+The Linux helper needs Python 3, `xdotool`, `xprop`, `scrot`, and `tesseract`
+with English language data. It validates Bitwarden's exact Chrome extension
+window class, title, and popup role, then OCRs only that window with upstream
+Tesseract TSV output, twice, so a list that is still re-rendering is never
+clicked. It clicks one high-confidence exact domain under the English
+authentication heading, then waits for Bitwarden to close the popup, which is
+how it confirms the choice was taken. Exit codes: 0 pressed and the popup
+closed; 2 nothing pressed (no unique popup, entry or heading, uncertain OCR, or
+lost focus); 5 pressed but the popup stayed open. A locked vault, a
+save-passkey dialog, and an expired prompt are never confirmed; reopen an
+expired prompt before retrying. No Chrome restart or accessibility
+configuration is required. It prints the folder holding `popup.png` (what it
+read) and `after.png` (the whole screen once the popup closed). Read them to
+verify the result. The folders live under `$TMPDIR/sudo/evidence/` with mode
+0700, because the popup shows account names.
+
+Approval still belongs to `scripts/approve.sh`. Its existing `YOLO=1` default
+skips notifications on Linux. `YOLO=0` still needs the macOS notification tool;
+these Linux input paths do not add another approval mechanism.
+
+Run desktop-free regressions with
+`python3 ~/.claude/skills/sudo/tests/passkey_linux_test.py`.
+Verified on Linux on 2026-10-25: a GitHub sudo-mode passkey challenge, and a full
+Google sign-in (the `--click` on **Next**, then the passkey). Always read the
+printed screenshots after a native click.
 
 ## Terminal passwords (sudo, ssh, su, key passphrases)
 

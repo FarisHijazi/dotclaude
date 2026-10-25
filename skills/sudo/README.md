@@ -13,5 +13,11 @@ Claude Code skill: logs in for you, never sees the secret.
 ```
 
 Needs macOS, `alerter`, Hammerspoon (`hs.ipc`, Accessibility), Chrome + Bitwarden, tmux.
-Linux (X11): `xdotool` instead, and pass `--title` (see `scripts/sudo-linux.sh`).
+Linux X11 uses `xdotool` and `--title` for autofill. Native login buttons also
+accept `--window-id ID --click X,Y --via google`, after the caller verifies the
+popup in a screenshot. Bitwarden passkey confirmation uses Python 3, `xprop`,
+`scrot`, and Tesseract English OCR, without restarting Chrome. See `SKILL.md`
+for the target guards and approval behavior.
+Run regressions with `python3 skills/sudo/tests/passkey_linux_test.py` from the
+repository root.
 `YOLO=1` (default in `approve.sh`) skips the click. Details: `SKILL.md`.
