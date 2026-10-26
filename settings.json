@@ -102,6 +102,16 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"$HOME/bin/git-org-guard\"; [ -x \"$f\" ] || exit 0; exec \"$f\" claude",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "Stop": [
