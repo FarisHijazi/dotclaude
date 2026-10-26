@@ -15,6 +15,13 @@ any shared host, don't signal processes at all — use the platform's verb (`qm 
 `systemctl stop`). Same rule for `xargs rm`, `find -delete`, `grep -l … | xargs sed -i`. Full rule:
 `memory/feedback_never_kill_by_pattern.md`.
 
+Avoid writing overly complex commands with `rm` or file paths in general because it could lead to accidentally having blank variables that would delete the wrong files.
+
+**Prefer commands whose effect is obvious at a glance.** The safety guard blocks commands it can't read with
+confidence, and every block wastes a round trip. So lean toward the unambiguous form: a literal path over
+`rm -f $P/*.jpeg`, `"${P:?}"` when a variable is needed, a fresh `mktemp -d` output folder over cleaning up an
+old one, and a short script over a long `cd … && … && …` one-liner. This is a habit to lean on, not a ban.
+
 NEVER use my real emails, org names, employer names or account handles as **examples** — in code,
 docs, comments, error messages or sample commands. Use `user@example.com`, `acme`/`org`,
 `work`/`client-a`, `<project>`. Real values are fine only when they ARE the runtime value (a config
