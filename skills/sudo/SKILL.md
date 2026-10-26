@@ -181,9 +181,10 @@ read) and `after.png` (the whole screen once the popup closed). Read them to
 verify the result. The folders live under `$TMPDIR/sudo/evidence/` with mode
 0700, because the popup shows account names.
 
-Approval still belongs to `scripts/approve.sh`. Its existing `YOLO=1` default
-skips notifications on Linux. `YOLO=0` still needs the macOS notification tool;
-these Linux input paths do not add another approval mechanism.
+Approval still belongs to `scripts/approve.sh`. With the default `YOLO=0`,
+Linux needs `SUDO_NOTIFY_HOST=<mac-host>` to show the notification on a Mac;
+without it every request is declined. These Linux input paths add no other
+approval mechanism.
 
 Run desktop-free regressions with
 `python3 ~/.claude/skills/sudo/tests/passkey_linux_test.py`.
@@ -206,9 +207,9 @@ python3 ~/.claude/skills/sudo/scripts/allow_chrome_prompt.py app.example.com --o
 
 - It OCRs the window (Tesseract on a Hammerspoon snapshot, or scrot on X11),
   refuses unless the window names `<site>`, and clicks the button's text.
-- It always asks with a fresh notification click, even under `YOLO=1`: the
-  click grants Claude itself more reach, so a human decides. The approval is
-  kept 2 minutes for `chrome-permission:<site>`.
+- It asks with a notification click like every other approval (skipped only
+  when the user has set `YOLO=1`). The approval is kept 2 minutes for
+  `chrome-permission:<site>`.
 - The window closes when its tool call times out, often before the user
   clicks. Exit 2 after an approval means exactly that: start the script and
   the Chrome call again, and the kept approval clicks at once.
@@ -301,9 +302,10 @@ The flag lives in `$TMPDIR`, so it lasts for the session.
   Automation prompt.
 - `scripts/approve.sh` is the only file that talks to the user:
   `request_approval` (sourced by the other scripts) and `need_approval` (run
-  as `approve.sh need`). `YOLO` (default `1`, the user's choice) sends no
-  notifications and treats every request as approved; the script then prints
-  "approved (YOLO debug mode...)". `YOLO=0` brings back the notification click.
+  as `approve.sh need`). `YOLO` defaults to `0`: every request needs the
+  notification click. `YOLO=1` sends no notifications and treats every
+  request as approved ("approved (YOLO debug mode...)"). Only the user sets
+  it, in their own environment; Claude never puts `YOLO=1` in a command.
 - The script's comments explain each non-obvious choice. Keep them when
   editing. The main ones:
   - The notification shows the tab title, not the URL, because macOS turns a

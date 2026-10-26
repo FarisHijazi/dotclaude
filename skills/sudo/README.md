@@ -22,4 +22,4 @@ popup in a screenshot. Bitwarden passkey confirmation uses Python 3, `xprop`,
 for the target guards and approval behavior.
 Run regressions with `python3 skills/sudo/tests/passkey_linux_test.py` from the
 repository root.
-`YOLO=1` (default in `approve.sh`) skips the click. Details: `SKILL.md`.
+Every approval is a notification click by default; `YOLO=1`, set by the user only, skips it. Details: `SKILL.md`.

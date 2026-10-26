@@ -4,9 +4,9 @@
 usage: allow_chrome_prompt.py <site> [--once] [--wait 60] [--timeout 120]
 
 Reads the window with OCR (macOS: Hammerspoon snapshot, X11: scrot), checks it
-names <site>, asks the user with a FRESH notification click (even under YOLO:
-this grants Claude itself more reach, so a human decides every time), then
-clicks "Always allow actions on this site", or "Allow this action" with --once.
+names <site>, asks the user with a notification click (skipped only when the
+user has set YOLO=1), then clicks "Always allow actions on this site", or
+"Allow this action" with --once.
 The Chrome tool call blocks while the window is open, so start this first
 (Bash run_in_background) and then make the call that triggers the prompt.
 If the window closed before the user clicked (exit 2 after an approval), run
@@ -163,7 +163,7 @@ def approve(site, action, timeout):
     # The Chrome window closes when its tool call times out, often before the user
     # clicks. The click is then kept for 2 minutes, so the retried call is answered
     # at once: still one human decision per site.
-    script = '. "$1"; YOLO=0; GRANT_SECONDS=120; request_approval "$2" "$3" "$4" "$5"'
+    script = '. "$1"; GRANT_SECONDS=120; request_approval "$2" "$3" "$4" "$5"'
     env = dict(os.environ, APPROVAL_TITLE="Claude wants Chrome access to " + site)
     return subprocess.run(["bash", "-c", script, "_", str(HERE / "approve.sh"), "chrome-permission:" + site,
                            action, TITLE + " permission", str(timeout)], env=env).returncode == 0
