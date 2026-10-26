@@ -37,6 +37,13 @@ keep `get-shit-done/`, `skills/gsd-*`, `skills/handsfree`, `skills/gws/README.md
 sources it when it exists; the full behaviour is documented there, in
 `docs/tmux-and-claude-sessions.md`. Tests: `uv run --with pytest pytest tests/`.
 
+`scripts/claude-accounts` is the launcher `tcc` and `cc` call, symlinked from
+`~/.local/bin/claude-accounts`. It reaches the shared account proxy over
+Tailscale. When the tailnet is unreachable (or `CLAUDE_PROXY_TUNNEL=1`), it starts
+a per-session `wstunnel` client to the proxy's public WebSocket entry and stops it
+when Claude exits. It needs `~/.local/bin/wstunnel` (v11.0.0) and the gate header
+file `~/.config/claude-codex/proxy-gate.headers` (mode 600, never in this repo).
+
 ### Driving the TUI from a script
 
 Two settings a running session will not re-read: `theme` and the per-session

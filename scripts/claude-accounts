@@ -1,0 +1,27 @@
+#!/bin/sh
+# Logins live on ftower (claude-account-proxy.service); this machine holds placeholders.
+# The previous all-local launcher is claude-accounts-local.
+# Normally the proxy is reached over Tailscale. When the tailnet is unreachable
+# (or CLAUDE_PROXY_TUNNEL=1), this starts a wstunnel client for just this session
+# to claude-proxy.fhijazi.com, and stops it when Claude exits.
+C="$HOME/.config/claude-codex"
+PROXY=100.103.162.14:18790
+VIA="http://$PROXY"
+probe() { curl -s --noproxy '*' -m 2 -o /dev/null "$1"; }
+
+if [ "${CLAUDE_PROXY_TUNNEL:-}" != 1 ] && probe "$VIA"; then
+  exec "$HOME/.local/bin/claude-account-router" --accounts-file "$C/accounts.json" \
+    --via "$VIA" --via-ca "$C/ftower-ca.pem" "$@"
+fi
+
+PORT=$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')
+"$HOME/.local/bin/wstunnel" client --http-headers-file "$C/proxy-gate.headers" \
+  -L "tcp://127.0.0.1:$PORT:$PROXY" wss://claude-proxy.fhijazi.com >"$C/tunnel.log" 2>&1 &
+TUNNEL=$!
+trap 'kill "$TUNNEL" 2>/dev/null' EXIT
+trap 'exit 130' INT TERM HUP
+VIA="http://127.0.0.1:$PORT"
+for _ in 1 2 3 4 5 6 7 8 9 10; do probe "$VIA" && break; sleep 0.5; done
+echo "claude-accounts: tailnet unreachable, using claude-proxy.fhijazi.com" >&2
+"$HOME/.local/bin/claude-account-router" --accounts-file "$C/accounts.json" \
+  --via "$VIA" --via-ca "$C/ftower-ca.pem" "$@"
