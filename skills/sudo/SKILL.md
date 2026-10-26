@@ -1,6 +1,6 @@
 ---
 name: sudo
-description: Get past a login wall in the user's real Chrome when the task needs it. Use this when a Claude in Chrome task can't continue without the user being signed in - a sign-in page, an expired session, Google "verify it's you", a passkey or MFA screen - or when the user asks to sign in, autofill a password or use a passkey. Also for terminal password prompts - sudo, ssh with a password, su, a key passphrase - which it answers through tmux. Typical sites are cloud consoles and billing, self-hosted dashboards, router or NAS admin pages, and SaaS accounts. Decide from the task. If the goal can be reached without signing in, skip it. If it can't, don't stop and don't just say so in chat (the user often isn't reading it) - run this skill so the user gets a macOS notification. One click on it is their full consent for the whole login; Bitwarden fills the password or presses the passkey, and Claude does every other step without seeing a secret. Also use it to alert the user whenever Claude is stuck and needs a human. Not for writing auth code or login tests, rotating keys or secrets, or keychain/OS settings.
+description: Get past a login wall in the user's real Chrome when the task needs it. Use this when a Claude in Chrome task can't continue without the user being signed in - a sign-in page, an expired session, Google "verify it's you", a passkey or MFA screen - or when the user asks to sign in, autofill a password or use a passkey. Also for terminal password prompts - sudo, ssh with a password, su, a key passphrase - which it answers through tmux. Typical sites are cloud consoles and billing, self-hosted dashboards, router or NAS admin pages, and SaaS accounts. Decide from the task. If the goal can be reached without signing in, skip it. If it can't, don't stop and don't just say so in chat (the user often isn't reading it) - run this skill so the user gets a macOS notification. One click on it is their full consent for the whole login; Bitwarden fills the password or presses the passkey, and Claude does every other step without seeing a secret. Also use it for Claude in Chrome's own "New permissions required" window (a tool call that times out waiting for Allow), and to alert the user whenever Claude is stuck and needs a human. Not for writing auth code or login tests, rotating keys or secrets, or keychain/OS settings.
 argument-hint: "[hook [on|off|status]]"
 hooks:
   PostToolUse:
@@ -190,6 +190,38 @@ Run desktop-free regressions with
 Verified on Linux on 2026-10-25: a GitHub sudo-mode passkey challenge, and a full
 Google sign-in (the `--click` on **Next**, then the passkey). Always read the
 printed screenshots after a native click.
+
+## Claude in Chrome permission window
+
+A Chrome tool call on a new site opens a "Claude for Chrome" window ("New
+permissions required ... Claude wants to navigate to: <site>") and fails with
+"No response to the Claude in Chrome permission prompt" if nobody answers.
+`scripts/allow_chrome_prompt.py` answers it, on macOS and Linux X11:
+
+```bash
+# Bash run_in_background, then the Chrome call that triggers the window:
+python3 ~/.claude/skills/sudo/scripts/allow_chrome_prompt.py app.example.com          # Always allow actions on this site
+python3 ~/.claude/skills/sudo/scripts/allow_chrome_prompt.py app.example.com --once   # Allow this action
+```
+
+- It OCRs the window (Tesseract on a Hammerspoon snapshot, or scrot on X11),
+  refuses unless the window names `<site>`, and clicks the button's text.
+- It always asks with a fresh notification click, even under `YOLO=1`: the
+  click grants Claude itself more reach, so a human decides. The approval is
+  kept 2 minutes for `chrome-permission:<site>`.
+- The window closes when its tool call times out, often before the user
+  clicks. Exit 2 after an approval means exactly that: start the script and
+  the Chrome call again, and the kept approval clicks at once.
+- Run it on the machine that shows the browser (`ssh <mac-host> python3 ...`
+  from a Linux session driving the Mac's Chrome). For a Linux browser, set
+  `SUDO_NOTIFY_HOST=<mac-host>`: `approve.sh` then shows the notification on
+  that Mac over ssh (any `request_approval` on Linux can use it).
+- Tested 2026-10-26 on the Mac's Chrome (one click, then it clicked "Always
+  allow" and the navigation went through). The ssh notification route was
+  tested on its own; the X11 window, OCR and click path is not tested yet.
+- Exit codes: `0` allowed, `1` declined, `2` no matching window or button,
+  `3` usage, `5` clicked but the window stayed open (screenshots under
+  `$TMPDIR/sudo/evidence/chrome-prompt-*`).
 
 ## Terminal passwords (sudo, ssh, su, key passphrases)
 

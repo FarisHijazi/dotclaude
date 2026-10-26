@@ -4,6 +4,7 @@
 #   approve.sh need "<what is needed>"   # Claude is stuck or needs the user
 #
 # request_approval <site> <action> <tab-title> <timeout-seconds>
+# APPROVAL_TITLE overrides the notification title (default "Claude wants to log in to <site>").
 # One click approves ONE login to <site> for GRANT_SECONDS: every later step of
 # that same login (SSO hops, a password step, retries) reuses the grant
 # instead of asking again. Returns 0 if approved, 1 if dismissed or timed out.
@@ -22,6 +23,17 @@ tell_session() {
 mtime() { stat -f %m "$1" 2>/dev/null || stat -c %Y "$1"; }
 
 GRANT_SECONDS=300
+# alerter is macOS-only. On another OS, SUDO_NOTIFY_HOST=<mac ssh host> shows
+# the notification on that Mac and returns its answer over ssh.
+alerter() {
+  if [ "$(uname)" = Darwin ]; then
+    /opt/homebrew/bin/alerter "$@"
+  elif [ -n "${SUDO_NOTIFY_HOST:-}" ]; then
+    ssh -o BatchMode=yes "$SUDO_NOTIFY_HOST" "/opt/homebrew/bin/alerter $(printf '%q ' "$@")"
+  else
+    echo "@NOALERTER"
+  fi
+}
 GRANT_DIR=${TMPDIR:-/tmp}/sudo
 # Debug only: YOLO=1 skips every notification and treats each request as
 # approved by the user. Off by default; never leave it on.
@@ -43,7 +55,7 @@ request_approval() {
   tell_session "[automated message from the approval flow, in progress] waiting up to ${timeout}s for the user to click the notification ($action on $site)"
   # The message is the tab TITLE, never a URL: macOS turns a URL in the text
   # into a link, and clicking the notification then opened it in a new tab.
-  answer=$(/opt/homebrew/bin/alerter --title "Claude wants to log in to $site" \
+  answer=$(alerter --title "${APPROVAL_TITLE:-Claude wants to log in to $site}" \
     --subtitle "Click to approve: $action" --message "$title" \
     --sound default --timeout "$timeout" --group sudo 2>/dev/null || true)
   # No buttons: Tahoe shows the close button and hides actions in a dropdown,
@@ -71,7 +83,7 @@ request_approval() {
 need_approval() {
   echo "needapproval: $1"
   [ "$YOLO" = 1 ] && return 0
-  (/opt/homebrew/bin/alerter --title "Claude needs you" --message "$1" \
+  (alerter --title "Claude needs you" --message "$1" \
     --sound default --timeout 600 --group sudo-need >/dev/null 2>&1 &)
 }
 
