@@ -42,3 +42,43 @@ def test_cc_routes_arguments_through_account_launcher(tmp_path, shell, args, for
     )
     actual = result.stdout.decode().rstrip("\0").split("\0")
     assert actual == ["account-launcher", "--", "--dangerously-skip-permissions", *forwarded]
+
+
+@pytest.mark.parametrize("shell", ["bash", "zsh"])
+@pytest.mark.parametrize(
+    "args, claudecode, expected",
+    [
+        ([], "", ["account-launcher", "--"]),
+        (["-p", "say ok"], "", ["account-launcher", "--", "-p", "say ok"]),
+        (["fix", "it"], "", ["account-launcher", "--", "fix", "it"]),
+        (["plugin", "list"], "", ["direct", "plugin", "list"]),
+        (["mcp", "list"], "", ["direct", "mcp", "list"]),
+        (["update"], "", ["direct", "update"]),
+        (["-p", "say ok"], "1", ["direct", "-p", "say ok"]),
+    ],
+)
+def test_claude_routes_sessions_through_account_launcher(
+    tmp_path, shell, args, claudecode, expected
+):
+    executable = shutil.which(shell)
+    if executable is None:
+        pytest.skip(f"{shell} is not installed")
+    source = (Path(__file__).parents[1] / "scripts" / "claude-shell.sh").read_text()
+    match = re.search(r"^claude\(\) \{\n.*?^\}", source, re.MULTILINE | re.DOTALL)
+    assert match is not None
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    fake = bindir / "claude"
+    fake.write_text("#!/bin/sh\nprintf '%s\\0' direct \"$@\"\n")
+    fake.chmod(0o755)
+    runner = tmp_path / "shortcut.sh"
+    runner.write_text(
+        "claude-accounts() { printf '%s\\0' account-launcher \"$@\"; }\n"
+        + match.group()
+        + '\nclaude "$@"\n'
+    )
+    env = {"PATH": f"{bindir}:/usr/bin:/bin", "CLAUDECODE": claudecode}
+    result = subprocess.run(
+        [executable, str(runner), *args], capture_output=True, check=True, timeout=5, env=env
+    )
+    assert result.stdout.decode().rstrip("\0").split("\0") == expected

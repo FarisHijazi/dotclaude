@@ -40,6 +40,27 @@ cc() {
   _claude_argv "$@"
   claude-accounts -- --dangerously-skip-permissions "${CLAUDE_ARGV[@]}"
 }
+
+# `claude` sessions go through the account proxy too (claude-accounts passes
+# the proxy URL in its own --settings; ~/.claude/settings.json carries none).
+# `command claude` is plain Claude on this machine's own login. Management
+# subcommands go straight to the binary: the router appends --chrome and
+# --mcp-config, which turns `claude plugin list` into a chat prompt. Inside a
+# Claude Code session (CLAUDECODE set) the Bash tool keeps the real binary.
+claude() {
+  if [ -n "${CLAUDECODE:-}" ]; then
+    command claude "$@"
+    return
+  fi
+  case "${1:-}" in
+  agents | attach | auth | auto-mode | doctor | gateway | import | install | logs | mcp | \
+    plugin | plugins | purge | respawn | rm | setup-token | stop | kill | ultrareview | \
+    update | upgrade)
+    command claude "$@"
+    ;;
+  *) claude-accounts -- "$@" ;;
+  esac
+}
 alias ccf=claude-flow
 
 # Convert 256-color code to hex (for VSCode integration)
