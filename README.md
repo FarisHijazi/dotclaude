@@ -37,12 +37,11 @@ keep `get-shit-done/`, `skills/gsd-*`, `skills/handsfree`, `skills/gws/README.md
 sources it when it exists; the full behaviour is documented there, in
 `docs/tmux-and-claude-sessions.md`. Tests: `uv run --with pytest pytest tests/`.
 
-`scripts/claude-accounts` is the launcher `tcc` and `cc` call, symlinked from
-`~/.local/bin/claude-accounts`. It reaches the shared account proxy over
-Tailscale. When the tailnet is unreachable (or `CLAUDE_PROXY_TUNNEL=1`), it starts
-a per-session `wstunnel` client to the proxy's public WebSocket entry and stops it
-when Claude exits. It needs `~/.local/bin/wstunnel` (v11.0.0) and the gate header
-file `~/.config/claude-codex/proxy-gate.headers` (mode 600, never in this repo).
+`claude-accounts`, the launcher `tcc` and `cc` call, now lives in the cc-proxy repo
+(`scripts/claude-accounts`); its proxy addresses come from the accounts file's `via`.
+`scripts/claude-accounts` here only hands over to it, or keeps the old tailnet-or-tunnel
+behaviour on a machine whose cc-proxy checkout predates the move. Delete it once every
+machine has the new one.
 
 ### Driving the TUI from a script
 

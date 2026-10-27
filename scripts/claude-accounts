@@ -1,9 +1,9 @@
 #!/bin/sh
-# Logins live on ftower (claude-account-proxy.service); this machine holds placeholders.
-# The previous all-local launcher is claude-accounts-local.
-# Normally the proxy is reached over Tailscale. When the tailnet is unreachable
-# (or CLAUDE_PROXY_TUNNEL=1), this starts a wstunnel client for just this session
-# to claude-proxy.fhijazi.com, and stops it when Claude exits.
+# Moved to the cc-proxy repo (scripts/claude-accounts, proxy addresses in the accounts
+# file's "via"). This copy hands over to it, and keeps the old behaviour below only for
+# a machine whose cc-proxy checkout predates it. Delete once every machine has it.
+NEW="$HOME/Projects/claude-code-with-codex/scripts/claude-accounts"
+[ -x "$NEW" ] && grep -q '"via"' "$HOME/.config/claude-codex/accounts.json" 2>/dev/null && exec "$NEW" "$@"
 C="$HOME/.config/claude-codex"
 PROXY=100.103.162.14:18790
 VIA="http://$PROXY"
