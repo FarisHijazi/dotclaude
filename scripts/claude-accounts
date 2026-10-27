@@ -1,27 +1,3 @@
 #!/bin/sh
-# Moved to the cc-proxy repo (scripts/claude-accounts, proxy addresses in the accounts
-# file's "via"). This copy hands over to it, and keeps the old behaviour below only for
-# a machine whose cc-proxy checkout predates it. Delete once every machine has it.
-NEW="$HOME/Projects/claude-code-with-codex/scripts/claude-accounts"
-[ -x "$NEW" ] && grep -q '"via"' "$HOME/.config/claude-codex/accounts.json" 2>/dev/null && exec "$NEW" "$@"
-C="$HOME/.config/claude-codex"
-PROXY=100.103.162.14:18790
-VIA="http://$PROXY"
-probe() { curl -s --noproxy '*' -m 2 -o /dev/null "$1"; }
-
-if [ "${CLAUDE_PROXY_TUNNEL:-}" != 1 ] && probe "$VIA"; then
-  exec "$HOME/.local/bin/claude-account-router" --accounts-file "$C/accounts.json" \
-    --via "$VIA" --via-ca "$C/ftower-ca.pem" "$@"
-fi
-
-PORT=$(python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])')
-"$HOME/.local/bin/wstunnel" client --http-headers-file "$C/proxy-gate.headers" \
-  -L "tcp://127.0.0.1:$PORT:$PROXY" wss://claude-proxy.fhijazi.com >"$C/tunnel.log" 2>&1 &
-TUNNEL=$!
-trap 'kill "$TUNNEL" 2>/dev/null' EXIT
-trap 'exit 130' INT TERM HUP
-VIA="http://127.0.0.1:$PORT"
-for _ in 1 2 3 4 5 6 7 8 9 10; do probe "$VIA" && break; sleep 0.5; done
-echo "claude-accounts: tailnet unreachable, using claude-proxy.fhijazi.com" >&2
-"$HOME/.local/bin/claude-account-router" --accounts-file "$C/accounts.json" \
-  --via "$VIA" --via-ca "$C/ftower-ca.pem" "$@"
+# Lives in the cc-proxy repo (scripts/claude-accounts); proxy routes are the accounts file's "via".
+exec "$HOME/Projects/claude-code-with-codex/scripts/claude-accounts" "$@"

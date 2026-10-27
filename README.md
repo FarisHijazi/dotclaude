@@ -39,9 +39,7 @@ sources it when it exists; the full behaviour is documented there, in
 
 `claude-accounts`, the launcher `tcc` and `cc` call, now lives in the cc-proxy repo
 (`scripts/claude-accounts`); its proxy addresses come from the accounts file's `via`.
-`scripts/claude-accounts` here only hands over to it, or keeps the old tailnet-or-tunnel
-behaviour on a machine whose cc-proxy checkout predates the move. Delete it once every
-machine has the new one.
+`scripts/claude-accounts` here only hands over to it, so `tcc` keeps one stable path.
 
 ### Driving the TUI from a script
 
