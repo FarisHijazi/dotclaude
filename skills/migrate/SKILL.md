@@ -141,7 +141,29 @@ ssh <host> 'export PATH="$HOME/.local/bin:$PATH"; cd <remote_path>
   claude --continue -p "In one line, what were we last working on?"'
 ```
 
-A real answer means it is wired up. `OAuth session expired and could not be refreshed`
+A real answer means it is wired up.
+
+To prove one specific conversation, resume it **by id from the directory its
+transcript records**, never from wherever the shell happens to be. `--resume <uuid>`
+keys off `projects/<slug of $PWD>/`, so from the wrong dir it fails or runs with the
+wrong cwd. Locate it first, across every config dir (`$CLAUDE_CONFIG_DIR`,
+`~/.claude`, each claude-accounts account under
+`~/.local/state/claude-codex/account-router/accounts/*/claude`):
+
+```bash
+# with dotclaude's claude-shell.sh sourced (cc / tcc / tmux-restore do this themselves):
+claude-session-locate <uuid>          # -> <cwd><TAB><transcript>, or a loud error
+# without it:
+ssh <host> 'find -H ~/.claude/projects ~/.local/state/claude-codex/account-router/accounts/*/claude/projects \
+  -mindepth 2 -maxdepth 2 -name "<uuid>.jsonl"'
+# then cd to the transcript's "cwd" whose /->- slug equals its folder name, and:
+claude --resume <uuid> -p "In one line, what were we last working on?"
+```
+
+"no transcript" = the history never landed (Step 1). "recorded in <dir>, which does
+not exist here" = the in-transcript paths were not rewritten (Step 2).
+
+`OAuth session expired and could not be refreshed`
 is the *credentials* layer, not history — check for a missing `refreshToken`
 (`platform-notes.md`), verify history via Step 2 instead, and report the auth blocker
 separately rather than calling the migration unverified.

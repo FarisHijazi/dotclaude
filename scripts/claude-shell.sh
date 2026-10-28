@@ -36,9 +36,90 @@ _claude_argv() {
   return 0
 }
 
+# Resume-by-id support. `claude --resume <uuid>` only looks in
+# projects/<slug of $PWD>/, so a resume from any other directory fails with
+# "No conversation found". These find the transcript first and cd to the
+# directory it was recorded in.
+#
+# _claude_roots — every `projects/` dir a transcript can live in, in
+# CLAUDE_ROOTS: $CLAUDE_CONFIG_DIR, ~/.claude, and each claude-accounts account
+# (usually symlinks to ~/.claude/projects, but a box may have real copies).
+_claude_roots() {
+  [ -n "${ZSH_VERSION:-}" ] && setopt localoptions nullglob
+  local r
+  CLAUDE_ROOTS=()
+  for r in ${CLAUDE_CONFIG_DIR:+"$CLAUDE_CONFIG_DIR"} "$HOME/.claude" \
+    "$HOME"/.local/state/claude-codex/account-router/accounts/*/claude; do
+    [ -d "$r/projects" ] && CLAUDE_ROOTS+=("$r/projects")
+  done
+  return 0
+}
+
+# claude-session-locate <uuid> — print "<cwd><TAB><transcript>" for a
+# conversation, searching every config dir. <cwd> is the recorded `cwd` whose
+# slug matches the transcript's folder (the dir `--resume` must run from).
+# Loud non-zero exit when it is missing or its directory no longer exists.
+claude-session-locate() {
+  local id="${1:-}" f="" hit="" slug c cwd=""
+  [[ "$id" =~ ^[0-9a-fA-F-]{36}$ ]] || {
+    echo "usage: claude-session-locate <session-uuid>" >&2
+    return 2
+  }
+  _claude_roots
+  while read -r f; do
+    if [ -z "$hit" ] || [ "$f" -nt "$hit" ]; then hit="$f"; fi
+  done < <(find -H "${CLAUDE_ROOTS[@]}" -mindepth 2 -maxdepth 2 -type f -name "$id.jsonl" 2>/dev/null)
+  [ -n "$hit" ] || {
+    echo "claude-session-locate: no transcript $id.jsonl under: ${CLAUDE_ROOTS[*]:-<no projects dirs>}" >&2
+    return 1
+  }
+  slug="$(basename "$(dirname "$hit")")"
+  while read -r c; do
+    if [ "$(printf '%s' "$c" | sed 's/[^A-Za-z0-9]/-/g')" = "$slug" ]; then
+      cwd="$c"
+      break
+    fi
+  done < <(grep -o '"cwd":"[^"]*"' "$hit" | sed 's/^"cwd":"//; s/"$//' | awk '!s[$0]++')
+  [ -n "$cwd" ] || {
+    echo "claude-session-locate: $hit records no cwd matching its folder $slug (moved project? see /migrate)" >&2
+    return 1
+  }
+  [ -d "$cwd" ] || {
+    echo "claude-session-locate: $id was recorded in $cwd, which does not exist here (see /migrate)" >&2
+    return 1
+  }
+  printf '%s\t%s\n' "$cwd" "$hit"
+}
+
+# _claude_resume_id <claude argv...> — the uuid after -r/--resume, if any.
+_claude_resume_id() {
+  local a prev=""
+  for a in "$@"; do
+    case "$prev" in -r | --resume) [[ "$a" =~ ^[0-9a-fA-F-]{36}$ ]] && echo "$a" && return 0 ;; esac
+    case "$a" in --resume=*) a="${a#--resume=}" && [[ "$a" =~ ^[0-9a-fA-F-]{36}$ ]] && echo "$a" && return 0 ;; esac
+    prev="$a"
+  done
+  return 0
+}
+
+# _claude_resume_cd <uuid> — cd to where that conversation was recorded.
+_claude_resume_cd() {
+  local loc dir
+  loc="$(claude-session-locate "$1")" || return 1
+  dir="${loc%%$'\t'*}"
+  [ "$dir" = "$PWD" ] && return 0
+  echo "resuming $1 in $dir" >&2
+  cd "$dir"
+}
+
 cc() {
   _claude_argv "$@"
-  claude-accounts -- --dangerously-skip-permissions "${CLAUDE_ARGV[@]}"
+  local id
+  id="$(_claude_resume_id "${CLAUDE_ARGV[@]}")"
+  (
+    [ -z "$id" ] || _claude_resume_cd "$id" || exit 1
+    claude-accounts -- --dangerously-skip-permissions "${CLAUDE_ARGV[@]}"
+  )
 }
 
 # `claude` sessions go through the account proxy too (claude-accounts passes
@@ -58,7 +139,14 @@ claude() {
     update | upgrade)
     command claude "$@"
     ;;
-  *) claude-accounts -- "$@" ;;
+  *)
+    local id
+    id="$(_claude_resume_id "$@")"
+    (
+      [ -z "$id" ] || _claude_resume_cd "$id" || exit 1
+      claude-accounts -- "$@"
+    )
+    ;;
   esac
 }
 alias ccf=claude-flow
@@ -146,6 +234,12 @@ tcc() {
     [ "${TCC_PRIVATE:-}" = 1 ] && launch+=(--private-remote-control)
     launch+=(-- --remote-control)
   fi
+
+  # A resume runs from the directory the conversation was recorded in (attached
+  # mode exits this shell afterwards anyway; detached callers use a subshell).
+  local rid
+  rid="$(_claude_resume_id "${CLAUDE_ARGV[@]}")"
+  [ -z "$rid" ] || _claude_resume_cd "$rid" || return 1
 
   TCC_SID="$sid" _tagent tcc "${launch[@]}" --dangerously-skip-permissions "${sid_arg[@]}" "${CLAUDE_ARGV[@]}"
 }
@@ -302,7 +396,7 @@ tls() {
 tmux-restore() {
   local dir src f ex cnt dry=0 pick="" list=0 best bestn srcn
   # `cwd`, never `path`: in zsh `path` IS $PATH (tied array), `local path` empties it
-  local cwd arg sess pd nudge res=() n_up=0 n_nudge=0 n_skip=0
+  local cwd arg sess pd t nudge res=() n_up=0 n_nudge=0 n_skip=0 n_fail=0
   local endd="${XDG_STATE_HOME:-$HOME/.local/state}/tcc/ended"
 
   ex="${TMUX_RESTORE_EXCLUDE:-^(hq-|hub/)}"
@@ -409,30 +503,40 @@ USAGE
     # blind (a second run duplicates the session) and an ambiguous name stops
     # at claude's picker, swallowing the nudge.
     if [ "${#arg}" -ne 36 ]; then
-      pd="$HOME/.claude/projects/$(printf '%s' "$cwd" | sed 's/[^A-Za-z0-9]/-/g')"
-      if [ "$arg" = -c ]; then
-        f=$(command ls -t "$pd"/*.jsonl 2>/dev/null | head -1)
-      else
-        f=$(grep -ilF "\"customTitle\":\"$arg" "$pd"/*.jsonl 2>/dev/null | xargs ls -t 2>/dev/null | head -1)
-      fi
+      pd="/$(printf '%s' "$cwd" | sed 's/[^A-Za-z0-9]/-/g')/"
+      _claude_roots
+      f=""
+      while read -r t; do
+        if [ "$arg" = -c ] || grep -qiF "\"customTitle\":\"$arg" "$t"; then
+          if [ -z "$f" ] || [ "$t" -nt "$f" ]; then f="$t"; fi
+        fi
+      done < <(find -H "${CLAUDE_ROOTS[@]}" -mindepth 2 -maxdepth 2 -path "*$pd*.jsonl" 2>/dev/null)
       [ -n "$f" ] && arg=$(basename "$f" .jsonl)
     fi
-    if [ "$arg" = -c ]; then res=(-c); else res=(-r "$arg"); fi
-    if [ "${#arg}" -eq 36 ] && ps -eo args= 2>/dev/null | grep -F -- "$arg" | grep -qv 'grep'; then
+    # Resume only by uuid, from the dir its transcript was recorded in; anything
+    # unresolvable is reported and skipped, never started as a fresh chat.
+    if [ "${#arg}" -ne 36 ] || ! f="$(claude-session-locate "$arg")"; then
+      echo "  x $sess  $cwd  $arg  (no transcript found -> NOT restored)" >&2
+      n_fail=$((n_fail + 1))
+      continue
+    fi
+    cwd="${f%%$'\t'*}"
+    res=(-r "$arg")
+    if ps -eo args= 2>/dev/null | grep -F -- "$arg" | grep -qv 'grep'; then
       echo "  = $sess  (already running)"
       n_skip=$((n_skip + 1))
       continue
     fi
-    if [ "${#arg}" -eq 36 ] && [ -f "$endd/$arg" ]; then
+    if [ -f "$endd/$arg" ]; then
       echo "  + $sess  $cwd  ${res[*]}"
       [ "$dry" -eq 1 ] || (
-        cd "$cwd" 2>/dev/null || cd
+        cd "$cwd" || exit 1
         TCC_DETACH=1 tcc "${res[@]}" >/dev/null
       ) || return $?
     else
       echo "  ! $sess  $cwd  ${res[*]}  (exited abruptly -> nudged)"
       [ "$dry" -eq 1 ] || (
-        cd "$cwd" 2>/dev/null || cd
+        cd "$cwd" || exit 1
         TCC_DETACH=1 tcc "${res[@]}" "$nudge" >/dev/null
       ) || return $?
       n_nudge=$((n_nudge + 1))
@@ -456,6 +560,9 @@ USAGE
       if (!seen[arg SUBSEP path]++) print $2 "\t" path "\t" arg
     }' "$src")
 
-  [ "$dry" -eq 1 ] && return 0
-  echo "tmux-restore: $n_up started ($n_nudge nudged), $n_skip already running. Run 'tw' to see them."
+  [ "$dry" -eq 1 ] || echo "tmux-restore: $n_up started ($n_nudge nudged), $n_skip already running. Run 'tw' to see them."
+  [ "$n_fail" -eq 0 ] || {
+    echo "tmux-restore: $n_fail conversation(s) NOT restored: transcript not found (see x lines)" >&2
+    return 1
+  }
 }
