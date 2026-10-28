@@ -112,6 +112,7 @@ sticky `hasLoaded` first-settle flag, never on `!loading`. Full rule:
 - **KISS** — straightforward solutions, no over-engineering, readable and maintainable.
 - **YAGNI** — nothing speculative; only what's needed now; no bloat.
 - **SOLID** — single responsibility, open-closed, Liskov, interface segregation, dependency inversion.
+- Avoid code comments unless absolutely necessary: only for context the code cannot express, like an architecture issue far out of the repo's scope.
 
 ## Tooling pointers
 
@@ -141,6 +142,9 @@ for example, let's say you investigated some service and then reported to me:
 ... not a single service is sending the JWT.  # this is super unclear whether it's good or bad, the sentence should start with 🟢 for good 🟡 for nitpick and 🔴 for bad
 ...  the ID would then be joined across the different tables ... # this is super unclear if this is the proposed solution or the current situation!! should be clarified, always always, clarify with something like "CURRENT: ..." and "PROPOSED: ..."
 ```
+
+Status legend, circles only: 🟢 good / works, 🟡 nitpick, 🟠 minor error (works but wrong somewhere), 🔴 bad / broken,
+🔵 neutral info, ⚪ unverified or unknown (not tested yet; never present it as fact).
 
 ## Chat output format
 
