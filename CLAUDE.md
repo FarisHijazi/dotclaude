@@ -1,53 +1,21 @@
-Act as a senior staff software engineer.
-
-read @CLAUDE.local.md for private instructions (accounts, identities, projects)
+Read @CLAUDE.local.md for private instructions (accounts, identities, projects)
 
 ## Things to NEVER do
 
-IMPORTANT: NEVER reboot or shut down the machine, NEVER restart the Docker runtime, or mess with
-system internals.
-
-IMPORTANT: **NEVER select what to DESTROY by pattern.** `pkill`/`killall`/`pgrep -f` match the whole
-command line, so a short or numeric pattern hits processes that merely *mention* it (this cost me a
-running VM and its in-flight backup). Every time: `pgrep -af <pattern>`, READ every match, narrow it
-if one line isn't mine, then `kill "$PID"` by a PID captured at launch. On a hypervisor/router/NAS or
-any shared host, don't signal processes at all — use the platform's verb (`qm stop`, `docker stop`,
-`systemctl stop`). Same rule for `xargs rm`, `find -delete`, `grep -l … | xargs sed -i`. Full rule:
-`memory/feedback_never_kill_by_pattern.md`.
-
-Avoid writing overly complex commands with `rm` or file paths in general because it could lead to accidentally having blank variables that would delete the wrong files.
-
-**Prefer commands whose effect is obvious at a glance.** The safety guard blocks commands it can't read with
-confidence, and every block wastes a round trip. So lean toward the unambiguous form: a literal path over
-`rm -f $P/*.jpeg`, `"${P:?}"` when a variable is needed, a fresh `mktemp -d` output folder over cleaning up an
-old one, and a short script over a long `cd … && … && …` one-liner. This is a habit to lean on, not a ban.
-
-NEVER use my real emails, org names, employer names or account handles as **examples** — in code,
-docs, comments, error messages or sample commands. Use `user@example.com`, `acme`/`org`,
-`work`/`client-a`, `<project>`. Real values are fine only when they ARE the runtime value (a config
-pointing at the actual account), never as illustration.
-
-## Tool calling
-
-- Don't run more than ~3 lines of code through `python -c` / `exec()` / `bash -c` — write it to a
-  file and execute that.
-- Never hand-write a file that a tool generates: `uv init` then edit for `pyproject.toml`/`uv.lock`;
-  for a notebook write a `#%%` `.py` and convert it.
-- Large generic boilerplate comes from upstream, not memory — download `Python.gitignore` from
-  github/gitignore, search for the real current hooks for `pre-commit-config.yaml`. Use `./tmp/` to
-  download and combine.
-- Keep `__init__.py` files totally empty.
+- IMPORTANT: NEVER reboot or shut down the machine, NEVER restart the Docker runtime, or mess with system internals.
+- IMPORTANT: never select what to kill/destroy using a pattern, `pkill/killall/pgrep -f` match the entire command line with partial matches which is dangerous. Do the safer thing which is to split it to 2 steps: 1. `pgrep -af <pattern>` and then read `kill "$PID"`.
+  On a hypervisor/router/NAS or any shared host, don't signal processes at all — use the platform's verb (`qm stop`, `docker stop`, `systemctl stop`). Same rule for `xargs rm`, `find -delete`, `grep -l … | xargs sed -i`. Full rule: `memory/feedback_never_kill_by_pattern.md`.
+- NEVER use my real emails, org names, employer names or account handles as **examples** — in code, docs, comments, error messages or sample commands. Use `user@example.com`, `acme`/`org`, `work`/`client-a`, `<project>`. Real values are fine only when they ARE the runtime value (a config pointing at the actual account), never as illustration.
+- Never run overly complex bash commands with `rm` or even `python -c` / `exec()` / `bash -c` with shell variables that are hard to evaluate, cuz that risks deleting something wrong in case there was a mistake in the var, instead write a bash file then execute it
+- Never hand-write a file that a tool generates them: like `uv init` then edit for `pyproject.toml`/`uv.lock` or just download the boilerplates like download `Python.gitignore` from github/gitignore, search for the real current hooks for `pre-commit-config.yaml`. Use `./tmp/` to download and combine.
 
 ## Documentation
 
-- Concisely document what you did before you stop coding, in `./docs/devlog/claude_{DATETIME}-{DESC}.md`. Read
-  that folder as needed — other devs leave notes there.
-- Always update `CLAUDE.md` before every git commit (ignore `./.cc/` and `./.cc-convos`). Mono-repos get a separate
-  `CLAUDE.md` per project/sub-project, not one big root file.
-- Don't be redundant: before writing, check the information isn't already elsewhere. Be explicit and
-  useful, not verbose.
-- If file B depends on file A, reference A from B — and when A changes, re-test and update every
-  dependent file, upstream and downstream.
+- IFF needed, concisely document what you did in `./docs/devlog/claude_{DATETIME}-{DESC}.md`. Don't document info that already exists in code, the code should be its own documentation/source of truth. Read that folder as needed — other devs leave notes there.
+- Keep `CLAUDE.md` up to date, especially before every git commit (ignore `./.cc/` and `./.cc-convos`).
+- Mono-repos get a separate `CLAUDE.md` per project/sub-project, not one big root file.
+- Don't be redundant: before writing, check the information isn't already elsewhere. Be explicit and useful, not verbose.
+- If file B depends on file A, reference A from B — and when A changes, re-test and update every dependent file, upstream and downstream.
 - Verify everything you document. If it conflicts with or overlaps other docs, test those too.
 
 ### `@` vs plain path — this decides context cost
@@ -63,8 +31,14 @@ pointing at the actual account), never as illustration.
 
 ## Development workflow
 
-- Think step-by-step first; 2–3 reasoning paragraphs outlining the approach is fine.
-- Plan/pseudocode before implementing.
+On the macOS laptop, development servers, databases, Docker/container runtimes,
+and model servers belong on remote servers or VMs. Do not start them locally
+unless the user explicitly overrides this policy; use the project's existing
+remote workflow. Preserve intended local bridges/proxies (including cc-tmux-api),
+VPNs/tunnels, SSH/tmux, and tmux-watch. Normal desktop utilities such as
+ActivityWatch may stay running. This restriction is for the laptop, not the
+remote development machines.
+
 - Test after every meaningful change. **Nothing is done unless it's tested and works** — never say
   done before testing.
 - Complete core functionality first, zero TODOs or placeholders. Optimize only after it works.
@@ -82,7 +56,7 @@ Use what exists; implement from scratch only when absolutely necessary.
 IMPORTANT: before building ANYTHING new, CHECK COMMUNITY/UPSTREAM SCRIPTS EXHAUSTIVELY first
 (community-scripts/ProxmoxVE for Proxmox, or the ecosystem's equivalent). If one does the job, USE it
 as-is, their documented way — never port its logic into local code. Build only what genuinely does
-not exist, and say why nothing existing covers it.
+not exist, and say why nothing existing covers it. /deep-research to make sure you actually found what already exists so we don't reinvent the wheel.
 
 Apply that at the **system** level too — which service/module owns this responsibility. Before adding
 a second write path, listener, cache or poller for a shared resource, grep the repo and sibling
@@ -127,16 +101,16 @@ sticky `hasLoaded` first-settle flag, never on `!loading`. Full rule:
 
 ## Texting/emails to other humans
 
-btw when you text, try to be concise and human, you tend to blurt out sooooo much info with sooo many numbers and details in run-on sentences, if you want to put detailed info, a human way to do it is to just mention the thing and then put bullet points as details
+BTW when you text, try to be concise and human, you tend to blurt out sooooo much info with sooo many numbers and details in run-on sentences, if you want to put detailed info, a human way to do it is to just mention the thing and then put bullet points as details
 
 ## Simplicity
 
-when making decisions or talking or brainstorming or discussing with me (the user), in general, I want you to always try to keep things simple, don't overcomplicate and try to find every single caveat and edgecase and make thing stake forever, let's just get things done simply and elegantly.
+When making decisions or talking or brainstorming or discussing with me (the user), in general, I want you to always try to keep things simple, don't overcomplicate and try to find every single caveat and edge case and make thing stake forever, let's just get things done simply and elegantly.
 
 ## Clarification
 
-every single thing you say should be clarified whether it's good or bad or the proposed solution or the existing situation.
-for example, let's say you investigated some service and then reported to me:
+Every single thing you say should be clarified whether it's good or bad or the proposed solution or the existing situation.
+For example, let's say you investigated some service and then reported to me:
 
 ```txt
 ... not a single service is sending the JWT.  # this is super unclear whether it's good or bad, the sentence should start with 🟢 for good 🟡 for nitpick and 🔴 for bad
@@ -222,7 +196,7 @@ is worse than silence.
 
 Whenever any of the last four sections has an item: write the complete formatted message ending with
 the status token, **then** call `AskUserQuestion` — several sequential calls if there are more items
-than one call holds. Actions go in as a multiselect; my ticking a box means I have finished that task.
+than one call holds. Actions go in as a multiselect, a single action should be a single select; me ticking a box means I have finished that task.
 Don't write a second formatted report once I answer, just carry on with the work.
 
 ## Message-ending status token (for cc-notify)
