@@ -6,8 +6,10 @@ turn and keeps the file current. Reads the hook event JSON from stdin
 (`session_id`, `cwd`, `transcript_path`). Falls back to positional args
 `<transcript_path> <session_id> <output_dir>` for manual runs / testing.
 
-Writes to `<cwd>/.cc-convos/<name>-<id>-<start-yymmddhhmmss>.md`. The filename is
-stable per session, so each turn overwrites the same file rather than piling up.
+Writes to `<cwd>/.cc-convos/<name>-<id>-<start-yymmddhhmmss>.md`. APPEND-ONLY: the
+file is found by session id and only entries not yet exported (tracked by uuid in
+`.cc-convos/.seen/<session_id>`) are appended, so a compaction, /rewind or a
+shortened transcript can never erase what was already saved. Never truncates.
 
 Disable with:  touch ~/.claude/disable_convo_export
 
@@ -15,6 +17,7 @@ Standalone, pure stdlib. Renders user prompts, assistant text, thinking
 (collapsed), tool calls, and (truncated) tool results in transcript order.
 """
 
+import hashlib
 import json
 import os
 import re
@@ -61,6 +64,10 @@ def first_timestamp(entries: list[dict]) -> datetime:
             except ValueError:
                 pass
     return datetime.now(timezone.utc).astimezone()
+
+
+def entry_key(e: dict) -> str:
+    return e.get("uuid") or hashlib.sha1(json.dumps(e, sort_keys=True).encode()).hexdigest()
 
 
 def slugify(name: str) -> str:
@@ -184,31 +191,46 @@ def main() -> int:
     if not entries:
         return 0
 
-    name = session_name(entries, out_dir.name)
-    started = first_timestamp(entries)
-    stamp = started.strftime("%y%m%d%H%M%S")
-    fname = f"{slugify(name)}-{session_id}-{stamp}.md"
-    out_file = out_dir / ".cc-convos" / fname
+    conv_dir = out_dir / ".cc-convos"
+    seen_file = conv_dir / ".seen" / session_id
+    existing = next(iter(sorted(conv_dir.glob(f"*-{session_id}-*.md"))), None)
+    keyed = [(entry_key(e), e) for e in entries]
 
-    header = [
-        f"# {name}",
-        "",
-        f"- **Session ID:** `{session_id}`",
-        f"- **Started:** {started.strftime('%Y-%m-%d %H:%M:%S %Z')}",
-        f"- **Project:** `{out_dir}`",
-        f"- **Exported:** {datetime.now().astimezone().strftime('%Y-%m-%d %H:%M:%S %Z')}",
-        "",
-        "---",
-        "",
-    ]
-    body = render(entries)
     try:
-        out_file.parent.mkdir(parents=True, exist_ok=True)
-        out_file.write_text("\n".join(header + body) + "\n")
+        seen_file.parent.mkdir(parents=True, exist_ok=True)
+        if not seen_file.exists() and existing:
+            # Legacy overwrite-style export: treat everything in the transcript as
+            # already saved, so only genuinely new entries get appended from now on.
+            seen_file.write_text("".join(k + "\n" for k, _ in keyed))
+            print(str(existing))
+            return 0
+        seen = set(seen_file.read_text().split()) if seen_file.exists() else set()
+        new = [(k, e) for k, e in keyed if k not in seen]
+        if not new:
+            return 0
+        body = render([e for _, e in new])
+
+        if existing is None:
+            name = session_name(entries, out_dir.name)
+            started = first_timestamp(entries)
+            stamp = started.strftime("%y%m%d%H%M%S")
+            existing = conv_dir / f"{slugify(name)}-{session_id}-{stamp}.md"
+            header = (
+                f"# {name}\n\n"
+                f"- **Session ID:** `{session_id}`\n"
+                f"- **Started:** {started.strftime('%Y-%m-%d %H:%M:%S %Z')}\n"
+                f"- **Project:** `{out_dir}`\n\n---\n\n"
+            )
+        else:
+            header = ""
+        with existing.open("a") as f:
+            f.write(header + "\n".join(body) + ("\n" if body else ""))
+        with seen_file.open("a") as f:
+            f.write("".join(k + "\n" for k, _ in new))
     except OSError as e:
         print(f"cc-export-convo: {e}", file=sys.stderr)
         return 1
-    print(str(out_file))
+    print(str(existing))
     return 0
 
 
