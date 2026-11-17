@@ -71,8 +71,8 @@ Dismissing or ignoring a notification declines, and nothing happens.
    ```
 
    For `--via password`, pass Bitwarden's L shortcut for the active Chrome
-   profile (`~/.claude/chrome-profiles.json` maps the connected browser to a
-   profile). Bindings are read from each profile's `Preferences`
+   profile (identify it from the connected browser's signed-in account).
+   Bindings are read from each profile's `Preferences`
    (`extensions.commands`, `autofill_login`):
 
    | Chrome profile | `--keys` |

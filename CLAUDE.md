@@ -94,7 +94,6 @@ sticky `hasLoaded` first-settle flag, never on `!loading`. Full rule:
 
 - Python tests: the `pytests` skill (`<name>_test.py`, `tests/` at project root, functional style,
   dual-mode direct-ASGI or `TEST_SERVER_URL`, categories unit/integration/e2e/flow).
-- `/chrome`: always read `~/.claude/chrome-profiles.json` first to pick the profile.
 - Blocked by a login, an expired session, "verify it's you" or MFA in Chrome: NEVER stop and NEVER
   just say so in chat (I'm often not reading it). Run the `sudo` skill right away: my
   one click on its notification is my full consent for that whole login, so finish it. It also
