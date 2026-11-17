@@ -20,6 +20,32 @@ bash scripts/install-plugins.sh
 
 ## Development
 
+### Global memory: Claude owns it, Codex mirrors it
+
+Edit `~/.claude/memory/` only. `scripts/sync-codex-memory.py` uses rsync to
+copy it one way into `~/.codex/memory/`, including additions, changes and
+deletions. Codex-only edits are discarded; preserve any unique notes in the
+source or their owning project before the first sync. Private source files
+such as `*.local.md` remain gitignored but are included in the local mirror.
+
+```sh
+uv run --no-project scripts/sync-codex-memory.py --dry-run
+uv run --no-project scripts/sync-codex-memory.py
+# macOS: install the native, short-lived sync job after reviewing the dry run
+uv run --no-project scripts/sync-codex-memory.py --install-launch-agent
+```
+
+The macOS job watches Claude's source memory directory and checks every 30
+seconds while the machine is awake, including correcting Codex-only edits.
+The destination is not watched because rsync's directory metadata updates
+would trigger another sync. Convergence is automatic rather than instant.
+It runs the installed Python interpreter directly and needs no network access.
+On other systems, run the same script after edits or from the existing user
+scheduler. The mirror requires a nonempty source `MEMORY.md` and refuses
+symlinked roots, symlinked contents, special files and hard links. `--home`
+selects an isolated home layout for testing; source and destination cannot be
+swapped. Tests: `uv run --with pytest pytest tests/codex_memory_sync_test.py`.
+
 ## This repo (dotclaude) tracking model
 
 `.gitignore` is a **whitelist**: `/*` ignores every top-level entry, then `!/...`

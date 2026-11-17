@@ -13,16 +13,21 @@ backup failed and was lost), and every service on it went down. Nothing warned m
 nothing and exits 0.
 
 **How to apply:**
+
 1. **Look before you kill.** `pgrep -af <pattern>` (or `ps aux | grep`) and READ the full command
    lines. If even one line is not mine, the pattern is wrong — narrow it, don't proceed.
 2. **Kill the exact PID**, not the pattern. Capture it at launch (`$!`, or a pidfile) and
    `kill "$PID"`. A pattern is a guess; a PID is not.
-3. **Anchor** an unavoidable pattern to a full path or unique token
-   (`pkill -f '^/usr/bin/myworker --id=abc123'`) — never a bare number, port, or common word.
-4. **Never kill processes on a hypervisor, router, NAS or other shared/host machine** — the blast
+3. **Never kill processes on a hypervisor, router, NAS or other shared/host machine** — the blast
    radius is other people's VMs, not my task. Use the platform's own verb (`qm stop`, `docker stop`,
    `systemctl stop`) instead of signalling processes. See [[feedback_never_touch_shared_system_state]].
-5. Same care for destructive greps-turned-actions: `xargs rm`, `find -delete`,
+4. Same care for destructive greps-turned-actions: `xargs rm`, `find -delete`,
    `grep -l … | xargs sed -i`. Print the match list, read it, then act on that list.
 
 Cleanup code deserves more care than the thing it cleans up, not less.
+
+Repeat incident 2026-10-16 (omni): ran `pkill -f "omni ingest whatsapp_backup" -0`, a one-liner
+meant as a "check", with no listing first. It killed the two hung runs it was aimed at, AND a
+`bash -c 'while kill -0 <pid> …'` watcher whose command line did not contain the pattern at all
+(probably matched by the stray `-0` argument). Lesson: there is no "harmless" pkill. To stop
+your own background job, kill the PID you saved at launch, or use the harness's TaskStop.

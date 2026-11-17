@@ -11,6 +11,8 @@ Read @CLAUDE.local.md for private instructions (accounts, identities, projects)
 
 ## Documentation
 
+- Shared preferences and detailed guidance: `~/.claude/memory/MEMORY.md`; read relevant entries on demand.
+- Infrastructure configuration and runbooks: `ansible-proxmox` (local checkout in `CLAUDE.local.md`); read that repo's `CLAUDE.md` when working on infrastructure.
 - IFF needed, concisely document what you did in `./docs/devlog/claude_{DATETIME}-{DESC}.md`. Don't document info that already exists in code, the code should be its own documentation/source of truth. Read that folder as needed — other devs leave notes there.
 - Keep `CLAUDE.md` up to date, especially before every git commit (ignore `./.cc/` and `./.cc-convos`).
 - Mono-repos get a separate `CLAUDE.md` per project/sub-project, not one big root file.
