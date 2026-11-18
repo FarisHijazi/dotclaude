@@ -10,7 +10,7 @@ credentials in a single config directory. To support multiple accounts we keep
 **one isolated config dir per account** and select it with the **native**
 environment variable `GOOGLE_WORKSPACE_CLI_CONFIG_DIR`. No wrapper, no aliases.
 
-```
+```text
 ~/.config/gws/profiles/
   default/        <- original creds copied here when migrating
   <profile-1>/    <- e.g. personal
@@ -19,6 +19,7 @@ environment variable `GOOGLE_WORKSPACE_CLI_CONFIG_DIR`. No wrapper, no aliases.
 ```
 
 Each profile directory contains:
+
 - `client_secret.json` - the OAuth **app** identity (shared GCP project / OAuth
   client). The same `client_secret.json` can be reused across all profiles -
   it identifies the *app*, not the *user*.
@@ -76,8 +77,20 @@ If you don't have a `client_secret.json` anywhere yet, run `gws auth setup`
 `GOOGLE_WORKSPACE_CLI_CLIENT_ID` / `GOOGLE_WORKSPACE_CLI_CLIENT_SECRET` env
 vars per `gws auth login --help`.
 
-For extra scopes (full Drive write, Pub/Sub, etc.) add `--full` or
-`--scopes drive,gmail,calendar,...` to `auth login`.
+Scopes: default to `--readonly` (the user asked for read-only, 2026-09-17; no write scopes unless he asks).
+`--services gmail,drive,calendar` takes names; `--scopes` takes full scope URLs only (`--scopes drive,gmail` is
+rejected by Google). `--readonly` and `--services` skip the interactive picker, so they work without a TTY.
+
+Headless box (the signed-in browser is on another machine):
+
+1. `BROWSER=/bin/true GOOGLE_WORKSPACE_CLI_CONFIG_DIR=~/.config/gws/profiles/<name> gws auth login --readonly`
+   in the background with stderr to a file; the consent URL and `redirect_uri=http://localhost:PORT` are in it.
+2. Open the URL in the signed-in browser and Allow. The redirect to `localhost:PORT` fails to load there (expected).
+3. Promptly `curl` that full redirect URL against `http://127.0.0.1:PORT/...` on this machine; `Success` means done.
+   Check with `gws auth status`.
+
+The credentials key lives in the OS keyring, which must be unlocked on every run; on a box without one set
+`GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND=file` before `auth login`.
 
 ## Listing / inspecting / deleting profiles
 
@@ -96,3 +109,5 @@ rm -rf ~/.config/gws/profiles/<name>
   the command and doesn't leak into subsequent unrelated calls.
 - `credentials.enc` is keyring-encrypted (per-user secret); `client_secret.json`
   is the OAuth app identity (shareable across profiles).
+- Google keeps scopes granted earlier, so a later login without `--readonly` regains write with no prompt; to make
+  read-only airtight, remove the grant at myaccount.google.com/permissions and re-grant.

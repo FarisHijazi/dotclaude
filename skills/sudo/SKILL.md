@@ -129,6 +129,10 @@ Dismissing or ignoring a notification declines, and nothing happens.
 
 ## Linux (X11)
 
+The Linux helpers default to `DISPLAY=:0` and `XAUTHORITY=$HOME/.Xauthority`.
+For SSH-launched X tools, export both explicitly and use the same display as
+the visible browser; its desktop must supply a window manager for active-window lookup.
+
 `sudo.sh` hands off to `scripts/sudo-linux.sh` on anything that is not macOS.
 For password autofill, pass `--title "<tab title prefix>"` instead of `--tab-id`.
 Read the title with Claude in Chrome. The script raises each Chrome window and

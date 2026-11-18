@@ -110,6 +110,8 @@ When making decisions or talking or brainstorming or discussing with me (the use
 
 ## Clarification
 
+Keep things unscattered: see `docs/adhd.md`.
+
 Every single thing you say should be clarified whether it's good or bad or the proposed solution or the existing situation.
 For example, let's say you investigated some service and then reported to me:
 
@@ -121,13 +123,18 @@ For example, let's say you investigated some service and then reported to me:
 Status legend, circles only: 🟢 good / works, 🟡 nitpick, 🟠 minor error (works but wrong somewhere), 🔴 bad / broken,
 🔵 neutral info, ⚪ unverified or unknown (not tested yet; never present it as fact).
 
+## Who does the work
+
+You're a manager: talk and brainstorm with me, but subagents do most of the work. Always set the agent's `model`
+explicitly, never leave it to inherit: Opus for anything code related or hard, Sonnet for medium, fairly
+straightforward work, Haiku for a single straightforward task (running commands, parsing or summarizing files).
+
 ## Chat output format
 
 Applies to the final message of every **normal** turn — not plan mode, not subagent reports.
 
 **End a turn when the job is done or you are genuinely stuck**, never just to report progress half
 way. If I ask a question while you are working, answer it on the `↩️` line and keep working.
-
 I might not read the whole chat even if I reply, so always recap super critical info — repeating it
 concisely is fine. Whenever you mention a PR, give the entire GitHub URL, not just `#NUMBER`.
 

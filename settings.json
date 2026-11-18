@@ -10,7 +10,7 @@
     ],
     "defaultMode": "auto"
   },
-  "model": "fable",
+  "model": "opus",
   "hooks": {
     "SessionStart": [
       {
@@ -193,11 +193,24 @@
         "repo": "cloudflare/skills"
       }
     },
-    "pstack-claude": {
+    "i-have-adhd": {
       "source": {
         "source": "github",
-        "repo": "michael-denyer/pstack-claude"
+        "repo": "ayghri/i-have-adhd"
       }
+    },
+    "claude-code-mods": {
+      "source": {
+        "source": "github",
+        "repo": "karanb192/claude-code-mods"
+      }
+    },
+    "doomscroll": {
+      "source": {
+        "source": "github",
+        "repo": "doomscroll-build/doomscroll-plugin"
+      },
+      "autoUpdate": true
     }
   },
   "feedbackDrafts": "off",
