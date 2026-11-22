@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Launch the FarisHijazi fork of claude-codex on its own port, so it never
+# competes with the stock instance on :18765.
+#
+#   claude-codex-fork start|stop|status|log
+#
+# Workspace note: cursor-agent runs in the directory the calling Claude Code
+# has open, read out of the environment block in its prompt. Export
+# CCP_CURSOR_CLI_WORKSPACE before `start` to pin every run to one directory
+# instead.
+set -uo pipefail
+
+PORT="${CLAUDE_CODEX_FORK_PORT:-18766}"
+BIN="${CLAUDE_CODEX_FORK_BIN:-$HOME/Projects/claude-code-with-codex/target/release/claude-codex}"
+STATE="$HOME/.local/state/claude-codex-fork"
+LOG="$STATE/server.log"
+PIDFILE="$STATE/server.pid"
+mkdir -p "$STATE"
+
+healthy() { curl -sf -m 2 "http://127.0.0.1:$PORT/healthz"; }
+
+running_pid() {
+  [ -f "$PIDFILE" ] || return 1
+  local pid; pid=$(cat "$PIDFILE" 2>/dev/null) || return 1
+  [ -n "$pid" ] || return 1
+  # Confirm the PID is still this server and not a recycled id.
+  ps -p "$pid" -o command= 2>/dev/null | grep -q "claude-codex" || return 1
+  echo "$pid"
+}
+
+case "${1:-start}" in
+  start)
+    if pid=$(running_pid); then echo "already running (pid $pid) on :$PORT"; exit 0; fi
+    # Probe the port with curl, not lsof: lsof is not always on PATH, and a
+    # "command not found" exits non-zero, so the guard failed OPEN and let a
+    # second instance launch that could not bind and died silently.
+    if healthy >/dev/null; then
+      echo "port $PORT is already serving (stale pidfile?); not starting a second"; exit 1
+    fi
+    [ -x "$BIN" ] || { echo "binary not found: $BIN"; exit 1; }
+    # nohup + & so it outlives the shell that started it.
+    # CCP_CURSOR_CLI_WORKSPACE is deliberately not defaulted: unset means
+    # "follow the caller", which is what makes cursor-cli useful for coding.
+    PORT="$PORT" nohup "$BIN" serve --no-monitor >> "$LOG" 2>&1 &
+    echo $! > "$PIDFILE"
+    for _ in $(seq 1 40); do
+      if healthy >/dev/null; then echo "started (pid $(cat "$PIDFILE")) on http://127.0.0.1:$PORT"; exit 0; fi
+      running_pid >/dev/null || break   # died during startup -- don't wait it out
+      sleep 0.25
+    done
+    echo "failed to start; last log lines:"; tail -5 "$LOG"; exit 1
+    ;;
+  stop)
+    # Stop by the PID recorded at launch, never by name pattern.
+    if pid=$(running_pid); then kill "$pid" && echo "stopped $pid"; rm -f "$PIDFILE";
+    else echo "not running"; fi
+    ;;
+  status)
+    if pid=$(running_pid); then
+      echo "running pid $pid on :$PORT"
+      healthy; echo
+    else echo "not running"; fi
+    ;;
+  log) tail -n "${2:-40}" "$LOG" ;;
+  *) echo "usage: claude-codex-fork start|stop|status|log"; exit 1 ;;
+esac

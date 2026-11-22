@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+# tcc-bg — spawn a DETACHED `tcc` (tmux + Claude Code) session for a directory.
+#
+# Unlike `tcc`, this is safe from inside tmux: the session is created detached
+# (no nesting), then the calling client is switched into it. Bound in
+# ~/.tmux.conf to
+#   prefix + a  -> current pane's directory
+#   prefix + A  -> this host's "main" repo (see --main below)
+#
+# Usage: tcc-bg [dir|--main] [claude-flags... | prompt words...]
+#
+# --main keeps ~/.tmux.conf portable: the config is shared across every machine,
+# but "my main repo" differs per host, so the path lives on the host instead of
+# in the committed config. Resolution order:
+#   $TCC_MAIN_REPO  ->  ~/.config/tcc/main-repo (first line)  ->  $HOME
+set -eo pipefail
+
+if [ "${1:-}" = "--main" ]; then
+  shift
+  dir="${TCC_MAIN_REPO:-}"
+  if [ -z "$dir" ] && [ -r "$HOME/.config/tcc/main-repo" ]; then
+    dir="$(sed -n '1p' "$HOME/.config/tcc/main-repo")"
+  fi
+  dir="${dir:-$HOME}"
+  dir="${dir/#\~/$HOME}"
+else
+  dir="${1:-$PWD}"
+  [ $# -gt 0 ] && shift || true
+fi
+
+# A `tw` (tmux-watch) hub: every pane is a nested `tmux attach` to a watched
+# session and carries @tw-src = "<host>\t<session>". A key pressed there
+# reaches the HUB's client, whose tty is a real terminal (or an ssh pty), so
+# the nested-client tell below does not fire and the hub client would be
+# switched away -- the whole grid vanishes behind the new session and comes
+# back only when that session dies. So in a watch pane: never switch (tw adds
+# a pane for the new session on its next poll), and take the directory from
+# the WATCHED session rather than the hub pane's cwd, which is just wherever
+# `tw` was launched. Only possible when the watched session is on this server
+# (empty host); a remote one is reached with one more prefix.
+tw_src=""
+if [ -n "${TMUX:-}" ] && [ -n "${TMUX_PANE:-}" ]; then
+  tw_src="$(tmux display-message -p -t "$TMUX_PANE" '#{@tw-src}' 2>/dev/null || true)"
+fi
+if [ -n "$tw_src" ]; then
+  tw_host="${tw_src%%$'\t'*}"
+  tw_sess="${tw_src#*$'\t'}"
+  if [ -n "$tw_host" ]; then
+    tmux display-message "tcc-bg: watched session $tw_sess is on $tw_host -- press prefix once more to spawn there"
+    exit 0
+  fi
+  watched_dir="$(tmux display-message -p -t "$tw_sess" '#{pane_current_path}' 2>/dev/null || true)"
+  [ -n "$watched_dir" ] && dir="$watched_dir"
+fi
+# A `tw` hub on ANOTHER machine watching this one. Its panes are
+# `ssh -t <host> tmux attach -t <session>`, so the key arrives on a client whose
+# tty is an ssh pty -- not a pane tty on this server -- and @tw-src is no help
+# either: tw sets it on the HUB's pane, which lives on the watching machine and
+# this server never sees. Switching that client replaces the session the remote
+# pane exists to display, which is the "prefix prefix a takes over the pane"
+# report from the VMs.
+#
+# The one local signal is ancestry. sshd runs a command-form ssh through the
+# login shell, which EXECS it, so a watch client's tmux process is a direct
+# child of sshd. A human who ssh'd in and typed `tmux attach` at a prompt still
+# has that interactive shell in between. Measured on both boxes:
+#   tw watch pane   ppid -> sshd-session   (`tmux attach -t career-coach-1`)
+#   local tw hub    ppid -> tmux: server   (handled by @tw-src above)
+client_is_ssh_command() {
+  local pid parent
+  pid="$(tmux display-message -p '#{client_pid}' 2>/dev/null)" || return 1
+  [ -n "$pid" ] || return 1
+  parent="$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')"
+  [ -n "$parent" ] || return 1
+  case "$(ps -o comm= -p "$parent" 2>/dev/null)" in
+    *sshd*) return 0 ;;
+    *)      return 1 ;;
+  esac
+}
+
+cd "$dir" || { echo "tcc-bg: no such dir: $dir" >&2; exit 1; }
+
+# Single source of truth: reuse tcc() itself (colour, session naming, flags).
+# shellcheck source=/dev/null
+source "$HOME/.bash_aliases" >/dev/null 2>&1
+
+session="$(TCC_DETACH=1 tcc "$@" | tail -n1)"
+[ -n "$session" ] || { echo "tcc-bg: failed to create session in $dir" >&2; exit 1; }
+
+msg="tcc: $session  ($dir)"
+# Inside tmux this runs under `run-shell`, which dumps ANY stdout into a new
+# `[tmux]` output window the user has to dismiss with q -- so report via the
+# status line and switch the client straight into the new session. Outside tmux
+# there is no client to switch, so just print how to get in.
+if [ -n "${TMUX:-}" ]; then
+  tmux display-message "$msg"
+  # Switch the calling client into the new session -- but NEVER a client that is
+  # itself living inside another pane. In the `tw` watch grid every pane hosts a
+  # nested client, and switching one replaces the session that pane exists to
+  # display (you see a duplicate and lose a watch). Tell: a nested client's tty
+  # IS a pane tty on this server; a real terminal's is not. Watch panes are left
+  # watching -- `tw` picks the new session up on its own. The same applies to a
+  # watch pane on ANOTHER machine, which arrives here as an ssh client instead
+  # -- see client_is_ssh_command above.
+  client_tty="$(tmux display-message -p '#{client_tty}' 2>/dev/null || true)"
+  if [ -z "$tw_src" ] && [ -n "$client_tty" ] \
+     && ! tmux list-panes -a -F '#{pane_tty}' | grep -qxF "$client_tty" \
+     && ! client_is_ssh_command; then
+    tmux switch-client -t "$session"
+  fi
+else
+  echo "$msg  -  'tmux attach -t $session' to enter"
+fi

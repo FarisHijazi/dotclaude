@@ -181,7 +181,7 @@ _set_vscode_color() {
 
 tcc() {
   # One env switch, no extra CLI flags -- every argument belongs to `claude`:
-  #   TCC_DETACH=1   (~/bin/tcc-bg, tmux-restore) create the session detached
+  #   TCC_DETACH=1   (~/.claude/bin/tcc-bg, tmux-restore) create the session detached
   #                  instead of attaching, the only way this is safe from
   #                  inside tmux.
 

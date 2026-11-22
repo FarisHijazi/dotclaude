@@ -67,6 +67,14 @@ sources it when it exists; the full behaviour is documented there, in
 (`scripts/claude-accounts`); its proxy addresses come from the accounts file's `via`.
 `scripts/claude-accounts` here only hands over to it, so `tcc` keeps one stable path.
 
+`bin/` holds standalone Claude Code tools (`tcc-bg`, `tcc-broadcast`,
+`claude-auth-status`, `claude-relogin`, `claude-codex-fork`). The dotfiles put
+`~/.claude/bin` on PATH (`.bashrc.d/10_env.sh`, `.bash_profile`); tmux binds and
+the LaunchAgent call it by absolute path. `scripts/claude-account.sh` (the
+per-directory account switch) is sourced by the dotfiles' `.bashrc.d/20_claude_account.sh`
+and reads the work tree and profile from `~/.config/claude/work-dir` and
+`~/.config/claude/work-profile` (or `$CLAUDE_WORK_DIR` / `$CLAUDE_WORK_PROFILE`).
+
 ### Driving the TUI from a script
 
 Two settings a running session will not re-read: `theme` and the per-session

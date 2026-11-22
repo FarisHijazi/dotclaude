@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# claude-relogin — re-authenticate Claude Code on a remote VM.
+#
+#   claude-relogin <host>     re-login on that host (ssh alias)
+#   claude-relogin --needed   re-login on every host claude-auth-status flags
+#
+# `claude auth login` on a headless box prints an OAuth URL and then waits at
+# "Paste code here if prompted >". This attaches you to that prompt and opens
+# the URL in your Mac browser automatically, so the only manual step is pasting
+# the code back.
+#
+# There is no unattended path, and Bitwarden does not create one: the flow is a
+# browser OAuth handshake, so it needs the session in your browser, not a stored
+# password. `claude setup-token` issues a long-lived token but is itself gated
+# behind the same interactive login.
+#
+# Aborting before pasting the code is safe — it leaves existing credentials
+# untouched (verified).
+set -uo pipefail
+
+REMOTE_CLAUDE='CB=""; for c in "$(command -v claude 2>/dev/null)" "$HOME/.local/bin/claude" "$HOME/.claude/local/claude"; do [ -n "$c" ] && [ -x "$c" ] && { CB="$c"; break; }; done; [ -n "$CB" ] || { echo "claude not found on this host" >&2; exit 1; };'
+
+relogin_one() {
+  local host="$1"
+  echo "==> $host"
+  # -t forces a remote TTY so the prompt behaves; stdin stays your terminal so
+  # you can paste the code. awk prints everything through unbuffered and opens
+  # the first OAuth URL it sees locally. The TTY line carries a trailing CR and
+  # escape codes; handing those to `open` makes macOS re-encode the URL
+  # (%3A -> %253A), which the server rejects as "Unknown scope". So match only
+  # URL characters.
+  ssh -t "$host" "$REMOTE_CLAUDE"' exec "$CB" auth login' 2>&1 | awk '
+    { print; fflush() }
+    !opened && /https:\/\/claude/ {
+      if (match($0, /https:\/\/[A-Za-z0-9._~:\/?#@!$&()*+,;=%-]+/)) {
+        system("open \047" substr($0, RSTART, RLENGTH) "\047")
+        opened = 1
+      }
+    }'
+  echo
+  printf '    now: '
+  ssh -o BatchMode=yes "$host" "$REMOTE_CLAUDE"' "$CB" auth status 2>/dev/null' \
+    | python3 -c 'import json,sys
+try:
+    d=json.load(sys.stdin); print("loggedIn=%s  %s  %s" % (d.get("loggedIn"), d.get("email","-"), d.get("subscriptionType","-")))
+except Exception: print("could not read auth status")' 2>/dev/null || echo "unknown"
+}
+
+if [ "${1:-}" = "--needed" ]; then
+  hosts=$(claude-auth-status --json 2>/dev/null \
+          | python3 -c 'import json,sys; print(" ".join(json.load(sys.stdin)["needs_login"]))')
+  if [ -z "${hosts// /}" ]; then echo "nothing needs a re-login"; exit 0; fi
+  echo "needs login:$hosts"
+  for h in $hosts; do relogin_one "$h"; done
+  exit 0
+fi
+
+[ $# -eq 1 ] || { sed -n '2,20p' "$0"; exit 2; }
+relogin_one "$1"

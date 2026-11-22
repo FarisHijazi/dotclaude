@@ -29,6 +29,7 @@
 
 # --- 3. Directories we own ------------------------------------------------
 !/agents/
+!/bin/
 !/channels/
 !/commands/
 !/docs/

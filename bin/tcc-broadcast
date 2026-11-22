@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+# tcc-broadcast — send one line of text to every live Claude Code tmux session.
+#
+#   tcc-broadcast "commit what you have"           # types it, does NOT submit
+#   tcc-broadcast "commit what you have" --enter   # types it and presses Enter
+#   tcc-broadcast -n "..."                         # dry run: show targets, send nothing
+#
+# WHAT COUNTS AS A CLAUDE SESSION
+#
+# A pane whose process subtree contains a `claude` process — deliberately NOT a
+# session-name pattern. `tcc()` names sessions `<dir-basename>-<N>` (see
+# ~/.claude/scripts/claude-shell.sh), which is indistinguishable from a plain shell session opened
+# in the same directory, so the name proves nothing. Two shapes both have to be
+# caught, and each defeats a simpler check:
+#
+#   pane_pid IS claude          - a session `tcc` started (claude is the pane command)
+#   pane_pid is a shell, claude - a restored/resumed session, where claude is a
+#   is its child                  CHILD of the pane's shell
+#
+# So this walks UP from every `claude` process to mark its ancestors, then keeps
+# the panes whose pane_pid landed in that set. That also excludes the `tw` hub
+# panes for free: their pane_pid is a local `tmux attach` or `ssh` client, which
+# is an ancestor of nothing local.
+#
+# `pane_current_command` is not used: it reports claude's process title (a bare
+# version like `2.1.259`), which is a version-shaped string today and something
+# else after any upstream change.
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: tcc-broadcast [options] "text to send"
+
+Options:
+  --enter          press Enter after the text (submit it). Default: type only.
+  --all            include hq-* sessions (scheduler-owned HQ workers).
+                   Default: skip them, matching `tls`.
+  --include-self   also send to the session running this command.
+                   Default: skip it, so a broadcast cannot feed itself.
+  -n, --dry-run    list what would be targeted and send nothing.
+  -h, --help       this.
+
+Text may be quoted or bare; bare words are joined with single spaces.
+Without --enter the text is left sitting in each prompt, unsubmitted — which is
+the safe default for a fan-out you want to eyeball before it runs.
+EOF
+}
+
+enter=0 all=0 self=0 dry=0
+words=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --enter)        enter=1 ;;
+    --all)          all=1 ;;
+    --include-self) self=1 ;;
+    -n|--dry-run)   dry=1 ;;
+    -h|--help)      usage; exit 0 ;;
+    --)             shift; words+=("$@"); break ;;
+    -*)             echo "tcc-broadcast: unknown option: $1" >&2; usage >&2; exit 2 ;;
+    *)              words+=("$1") ;;
+  esac
+  shift
+done
+
+text="${words[*]-}"
+[ -n "$text" ] || { echo "tcc-broadcast: nothing to send." >&2; usage >&2; exit 2; }
+
+tmux has-session 2>/dev/null || { echo "tcc-broadcast: no tmux server running." >&2; exit 1; }
+
+# Pids that are a `claude` process or an ancestor of one. One ps call, one pass.
+claude_hosts="$(
+  ps -axo pid=,ppid=,comm= 2>/dev/null | awk '
+    { pid=$1; ppid=$2; comm=$3; sub(/.*\//, "", comm); PPID[pid]=ppid; COMM[pid]=comm }
+    END {
+      for (p in COMM) {
+        if (COMM[p] != "claude") continue
+        # Walk to the root, marking every ancestor. A pane_pid is only ever
+        # marked if a claude actually lives under it; the tmux server gets
+        # marked too, but the server is nobody pane_pid, so it never matches.
+        q = p
+        while (q != "" && q != "0" && !(q in seen)) { seen[q] = 1; print q; q = PPID[q] }
+      }
+    }
+  ' | sort -u
+)"
+[ -n "$claude_hosts" ] || { echo "tcc-broadcast: no claude processes found." >&2; exit 1; }
+
+self_pane="${TMUX_PANE:-}"
+
+targets=()
+labels=()
+while IFS='|' read -r pane_id sess win pane pane_pid; do
+  [ -n "$pane_id" ] || continue
+  grep -qxF "$pane_pid" <<<"$claude_hosts" || continue
+  [ "$all" -eq 1 ] || case "$sess" in hq-*) continue ;; esac
+  if [ "$self" -eq 0 ] && [ -n "$self_pane" ] && [ "$pane_id" = "$self_pane" ]; then
+    labels+=("$sess:$win.$pane (self — skipped)")
+    continue
+  fi
+  targets+=("$pane_id")
+  labels+=("$sess:$win.$pane")
+done < <(tmux list-panes -a -F '#{pane_id}|#{session_name}|#{window_index}|#{pane_index}|#{pane_pid}')
+
+printf 'text:  %s%s\n' "$text" "$([ "$enter" -eq 1 ] && echo '  [+Enter]' || echo '  [not submitted]')"
+printf 'claude sessions: %s\n' "${#targets[@]}"
+for l in ${labels+"${labels[@]}"}; do printf '  %s\n' "$l"; done
+
+if [ "${#targets[@]}" -eq 0 ]; then
+  echo "tcc-broadcast: nothing to send to." >&2
+  exit 1
+fi
+[ "$dry" -eq 1 ] && { echo "(dry run — nothing sent)"; exit 0; }
+
+for pane_id in "${targets[@]}"; do
+  # Literal text first, then Enter as a separate key, per the tmux skill's safe
+  # TUI pattern: sending them together lets a paste-style merge auto-run the
+  # line, which with --enter absent would submit something the user did not ask
+  # to submit.
+  tmux send-keys -t "$pane_id" -l -- "$text"
+  if [ "$enter" -eq 1 ]; then
+    sleep 0.15
+    tmux send-keys -t "$pane_id" Enter
+  fi
+done
+
+echo "sent to ${#targets[@]} session(s)."

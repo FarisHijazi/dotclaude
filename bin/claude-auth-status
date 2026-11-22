@@ -1,0 +1,212 @@
+#!/usr/bin/env bash
+# claude-auth-status — is Claude Code still logged in on each VM?
+#
+# Reads ~/.claude/.credentials.json on every host and reports when a login is
+# about to lapse, so a background worker does not silently stop working. Only
+# the expiry and plan are ever read out of that file; the tokens are never
+# printed, logged or transmitted.
+#
+#   claude-auth-status              table for every host
+#   claude-auth-status --notify     also raise a macOS notification if needed
+#   claude-auth-status --json       machine-readable
+#   claude-auth-status --install-agent | --uninstall-agent
+#
+# Hosts come from ~/.config/claude-auth/hosts (one ssh alias per line, # for
+# comments); an empty template is written there on first run. Use ssh ALIASES, not
+# user@host — the alias is what carries the IdentityFile.
+#
+# UNREACHABLE is deliberately never folded into "needs login". A box that is
+# powered off, or off the tailnet, tells you nothing about its login state, and
+# reporting it as logged-out would send you to re-auth a VM that is simply not
+# running.
+set -uo pipefail
+
+# launchd's PATH is /usr/bin:/bin:/usr/sbin:/sbin -- no Homebrew, no ~/bin. Without
+# this the hourly agent never found alerter and fell back to osascript, whose
+# banner belongs to Script Editor: clicking it opened Script Editor.
+PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/bin:$HOME/.claude/bin:$PATH"
+
+# Classify on the REFRESH token, not the access token. The access token
+# (expiresAt) lives ~1-8h and Claude Code silently renews it, so warning on it
+# would fire every hour on a perfectly healthy box. Only refreshTokenExpiresAt
+# lapsing actually forces a human to run /login.
+WARN_SECS=${CLAUDE_AUTH_WARN_SECS:-259200}      # warn under 3 days of REFRESH token
+CONF_DIR="$HOME/.config/claude-auth"
+HOSTS_FILE="$CONF_DIR/hosts"
+AGENT="$HOME/Library/LaunchAgents/com.farishijazi.claude-auth-status.plist"
+NOTIFY=0 JSON=0
+
+for a in "$@"; do case "$a" in
+  --notify) NOTIFY=1 ;;
+  --json) JSON=1 ;;
+  --install-agent) ACTION=install ;;
+  --uninstall-agent) ACTION=uninstall ;;
+  -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
+  *) echo "unknown option: $a" >&2; exit 2 ;;
+esac; done
+
+if [ "${ACTION:-}" = uninstall ]; then
+  launchctl unload "$AGENT" 2>/dev/null; rm -f "$AGENT"
+  echo "uninstalled $AGENT"; exit 0
+fi
+if [ "${ACTION:-}" = install ]; then
+  mkdir -p "$(dirname "$AGENT")"
+  cat > "$AGENT" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.farishijazi.claude-auth-status</string>
+  <key>ProgramArguments</key>
+  <array><string>$HOME/.claude/bin/claude-auth-status</string><string>--notify</string></array>
+  <key>StartInterval</key><integer>3600</integer>
+  <key>RunAtLoad</key><true/>
+  <key>StandardOutPath</key><string>$HOME/Library/Logs/claude-auth-status.log</string>
+  <key>StandardErrorPath</key><string>$HOME/Library/Logs/claude-auth-status.log</string>
+</dict></plist>
+PLIST
+  launchctl unload "$AGENT" 2>/dev/null
+  launchctl load "$AGENT" && echo "installed $AGENT (hourly, --notify)"
+  exit 0
+fi
+
+mkdir -p "$CONF_DIR"
+if [ ! -f "$HOSTS_FILE" ]; then
+  cat > "$HOSTS_FILE" <<'EOF'
+# ssh aliases to check for Claude Code login state, one per line.
+# Aliases, not user@host — the alias carries the IdentityFile.
+EOF
+  echo "wrote default host list: $HOSTS_FILE" >&2
+fi
+
+# Emits one line: <status> <refresh_secs> <access_secs> <plan> <account>
+# Never emits any token material.
+#
+# Two sources on purpose:
+#   `claude auth status` is first-party and authoritative for "am I logged in"
+#     and WHICH account -- a VM quietly on the wrong account is a real failure
+#     mode, and no amount of file-parsing would catch it.
+#   the credentials file is the only place with refreshTokenExpiresAt, i.e. the
+#     lead time before a human is required. auth status cannot tell you that.
+read -r -d '' PROBE <<'EOF' || true
+CB=""
+for c in "$(command -v claude 2>/dev/null)" "$HOME/.local/bin/claude" "$HOME/.claude/local/claude"; do
+  [ -n "$c" ] && [ -x "$c" ] && { CB="$c"; break; }
+done
+# PATH comes from .bashrc, which only runs for interactive shells, so a plain
+# `ssh host claude ...` finds nothing. Probe known locations instead.
+[ -n "$CB" ] || { echo "NOCLAUDE 0 0 - -"; exit 0; }
+command -v python3 >/dev/null || { echo "NOPYTHON 0 0 - -"; exit 0; }
+S=$(mktemp); "$CB" auth status >"$S" 2>/dev/null || true
+python3 - "$S" <<'PY2'
+import json, os, sys, time
+try:    st = json.load(open(sys.argv[1]))
+except Exception: st = {}
+acct   = st.get("email") or "-"
+plan   = st.get("subscriptionType") or "-"
+logged = st.get("loggedIn")
+r = a = 0
+try:
+    o = json.load(open(os.path.expanduser("~/.claude/.credentials.json")))["claudeAiOauth"]
+    if o.get("refreshTokenExpiresAt"): r = int(o["refreshTokenExpiresAt"]/1000 - time.time())
+    if o.get("expiresAt"):             a = int(o["expiresAt"]/1000 - time.time())
+    if plan == "-": plan = o.get("subscriptionType", "-")
+except Exception:
+    pass
+if   logged is False:            status = "LOGGEDOUT"
+elif logged is None and r == 0:  status = "NOCREDS"
+elif r and r <= 0:               status = "EXPIRED"
+else:                            status = "OK"
+print(status, r, a, plan, acct)
+PY2
+rm -f "$S"
+EOF
+
+
+TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
+while read -r host; do
+  case "$host" in ''|\#*) continue ;; esac
+  (
+    out=$(ssh -o BatchMode=yes -o ConnectTimeout=6 -o StrictHostKeyChecking=accept-new \
+              "$host" "$PROBE" 2>/dev/null)
+    rc=$?
+    [ $rc -ne 0 ] || [ -z "$out" ] && out="UNREACHABLE 0 0 - -"
+    echo "$host $out" > "$TMP/$host"
+  ) &
+done < "$HOSTS_FILE"
+wait
+
+need="" unreach=""
+rows=""
+while read -r host; do
+  case "$host" in ''|\#*) continue ;; esac
+  read -r _h st left aleft plan acct < "$TMP/$host" 2>/dev/null || { st=UNREACHABLE; left=0; aleft=0; plan=-; acct=-; }
+  case "$st" in
+    # left=0 with loggedIn=true = no refreshTokenExpiresAt at all (a long-lived
+    # `setup-token` style login): expiry unknowable, so not "expiring".
+    OK) if [ "$left" -gt 0 ] && [ "$left" -lt "$WARN_SECS" ]; then st=EXPIRING; need="$need $host"; fi ;;
+    EXPIRED|LOGGEDOUT|NOCREDS|NOCLAUDE|UNREADABLE|NOPYTHON) need="$need $host" ;;
+    UNREACHABLE) unreach="$unreach $host" ;;
+  esac
+  d=$((left/86400)); h=$(((left%86400)/3600))
+  [ "$left" -le 0 ] && human="-" || human="${d}d${h}h"
+  ah=$((aleft/3600)); am=$(((aleft%3600)/60))
+  if [ "$st" = UNREACHABLE ] || [ "$st" = NOCREDS ] || [ "$st" = UNREADABLE ] || [ "$st" = NOPYTHON ] || [ "$st" = NOCLAUDE ]; then
+    # We did not read a credentials file, so we know nothing about the access
+    # token. Printing "stale" here would assert a fact we never observed.
+    ahuman="?"
+  elif [ "$aleft" -le 0 ]; then ahuman="stale"
+  else ahuman="${ah}h${am}m"; fi
+  rows="$rows$host|$st|$human|$ahuman|$plan|$acct"$'\n'
+done < "$HOSTS_FILE"
+
+if [ "$JSON" = 1 ]; then
+  printf '{"needs_login":[%s],"unreachable":[%s],"hosts":[' \
+    "$(for x in $need; do printf '"%s",' "$x"; done | sed 's/,$//')" \
+    "$(for x in $unreach; do printf '"%s",' "$x"; done | sed 's/,$//')"
+  first=1
+  while IFS='|' read -r f1 f2 f3 f4 f5 f6; do [ -z "$f1" ] && continue
+    [ $first = 1 ] || printf ','; first=0
+    printf '{"host":"%s","status":"%s","relogin_in":"%s","access_in":"%s","plan":"%s","account":"%s"}' "$f1" "$f2" "$f3" "$f4" "$f5" "$f6"
+  done <<< "$rows"
+  echo ']}'
+else
+  printf '%-16s %-11s %-11s %-8s %-5s %s\n' HOST STATUS RE-LOGIN-IN ACCESS PLAN ACCOUNT
+  while IFS='|' read -r f1 f2 f3 f4 f5 f6; do [ -z "$f1" ] && continue
+    printf '%-16s %-11s %-11s %-8s %-5s %s\n' "$f1" "$f2" "$f3" "$f4" "$f5" "$f6"
+  done <<< "$rows"
+  [ -n "$need" ]    && echo && echo "NEEDS LOGIN:$need   ->  claude-relogin <host>"
+  [ -n "$unreach" ] && echo "UNREACHABLE:$unreach   (says nothing about login state)"
+fi
+
+# Clicking the banner opens a new Ghostty window that runs claude-relogin (it
+# sshes to the host and opens the OAuth URL in the Mac browser). alerter blocks
+# until click/timeout, which is fine: this runs hourly under launchd.
+relogin_window() {  # $1 = command line to type into the new window's shell
+  osascript - "$1" <<'OSA' >/dev/null
+on run argv
+  tell application "Ghostty"
+    set cfg to new surface configuration
+    set initial input of cfg to (item 1 of argv) & linefeed
+    new window with configuration cfg
+    activate
+  end tell
+end run
+OSA
+}
+
+if [ "$NOTIFY" = 1 ] && [ -n "$need" ]; then
+  hosts=${need# }
+  case "$hosts" in *" "*) cmd="claude-relogin --needed" ;; *) cmd="claude-relogin $hosts" ;; esac
+  if [ -n "${CLAUDE_AUTH_PRINT_ACTION:-}" ]; then echo "click action: $cmd"; exit 1; fi
+  if command -v alerter >/dev/null; then
+    click=$(alerter --title "Claude Code auth" --message "Needs login: $hosts (click to log in)" \
+                    --actions "Log in" --timeout 900 2>/dev/null)
+    case "$click" in @CONTENTCLICKED|@ACTIONCLICKED|"Log in") relogin_window "$cmd" ;; esac
+  else
+    osascript -e "display notification \"Needs login: $hosts -- run $cmd\" with title \"Claude Code auth\"" 2>/dev/null
+  fi
+fi
+
+[ -n "$need" ] && exit 1
+[ -n "$unreach" ] && exit 2
+exit 0
