@@ -82,3 +82,40 @@ def test_claude_routes_sessions_through_account_launcher(
         [executable, str(runner), *args], capture_output=True, check=True, timeout=5, env=env
     )
     assert result.stdout.decode().rstrip("\0").split("\0") == expected
+
+
+@pytest.mark.parametrize("shell", ["bash", "zsh"])
+@pytest.mark.parametrize(
+    "env, prefix",
+    [({}, "box-myproj"), ({"TCC_RC_PREFIX": "work"}, "work"), ({"TCC_RC_PREFIX": ""}, None)],
+)
+def test_tcc_names_remote_control_sessions_after_host_and_project(tmp_path, shell, env, prefix):
+    executable = shutil.which(shell)
+    if executable is None:
+        pytest.skip(f"{shell} is not installed")
+    source = (Path(__file__).parents[1] / "scripts" / "claude-shell.sh").read_text()
+    functions = []
+    for name in ("_claude_argv", "tcc"):
+        match = re.search(rf"^{name}\(\) \{{\n.*?^\}}", source, re.MULTILINE | re.DOTALL)
+        assert match is not None
+        functions.append(match.group())
+    project = tmp_path / "myproj"
+    project.mkdir()
+    runner = tmp_path / "tcc.sh"
+    runner.write_text(
+        "claude-accounts() { :; }\n"
+        "hostname() { echo box; }\n"
+        "uuidgen() { echo 00000000-0000-0000-0000-000000000000; }\n"
+        "_claude_resume_id() { :; }\n"
+        "_tagent() { printf '%s\\0' \"$@\"; }\n"
+        + "\n".join(functions)
+        + f'\ncd {project}\ntcc\n'
+    )
+    result = subprocess.run(
+        [executable, str(runner)], capture_output=True, check=True, timeout=5,
+        env={"PATH": "/usr/bin:/bin", **env},
+    )
+    argv = result.stdout.decode().rstrip("\0").split("\0")
+    assert argv[:4] == ["tcc", "claude-accounts", "--", "--remote-control"]
+    flag = "--remote-control-session-name-prefix"
+    assert (argv[argv.index(flag) + 1] if flag in argv else None) == prefix
