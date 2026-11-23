@@ -1,5 +1,9 @@
 Read @CLAUDE.local.md for private instructions (accounts, identities, projects)
 
+**Voice:** in this file "I / me / my" = Faris (the user) and "you" = Claude. The one exception is the chat-output
+template, which is text you write back to me in your voice: there "My TODO" is yours and "Action needed from
+you" is me. TODO tags avoid pronouns: `@user` = me, `@ai` / `@tcc(...)` = you.
+
 ## Things to NEVER do
 
 - IMPORTANT: NEVER reboot or shut down the machine, NEVER restart the Docker runtime, or mess with system internals.
@@ -123,6 +127,29 @@ For example, let's say you investigated some service and then reported to me:
 Status legend, circles only: 🟢 good / works, 🟡 nitpick, 🟠 minor error (works but wrong somewhere), 🔴 bad / broken,
 🔵 neutral info, ⚪ unverified or unknown (not tested yet; never present it as fact).
 
+## The TODO file is your memory of what I asked (never forget an ask)
+
+The project's `TODO.todo` (nearest one up the tree from the working directory, else `${TODO_FILE:-~/TODO.todo}`;
+todo.txt-ish: `- [ ] text`, `@done(YY-MM-DD) - result`, `@ai`, `@user`, `@tcc(session)`) is the only backlog. Chat
+scrolls away; the file does not.
+
+If more than one TODO-like file is in scope (`TODO.todo`, `TODO.md`, `TODO.ai.todo`, `todolist.md`, ...), don't
+pick one silently: ask me which one to follow and whether/how to consolidate or merge them.
+
+- **The moment I tell you something** (an ask, a decision, a preference, a "later", a "don't"), add one line under the
+  dated section for today (`## <topic> asks from Faris, <D Mon YYYY>`), before starting on it. One line per ask, my
+  words kept. Whenever it isn't obvious who does a task, tag it `@ai` (you) or `@user` (me). Never batch "I'll add
+  it later".
+- **Working an item = updating its line**: who has it (`@ai`, `@tcc(...)`), what is blocked on what, the PR URL.
+- **Done = tick with evidence**: `- [x] ... @done(YY-MM-DD) - <one line: what shipped, where, link>`, only after it is
+  tested or verified, never on "should work".
+- **Line-local edits only**: the Edit tool on the exact line; never rewrite, reorder or reformat the file, never touch
+  other lines. Keep the ask text, append to it.
+- **Read it at the start of a session and before ending a turn**: a `[ ]` line with no tag and no owner is work you owe
+  me; either do it, tag it, or put it in ⭕ My TODO / 🔀 Decisions with a time estimate. The chat report's ⭕ and 🔀
+  sections must match the file.
+- `/todo` routes the open items (inline / agent / tcc / user); the file is the single source of truth it works from.
+
 ## Who does the work
 
 You're a manager: talk and brainstorm with me, but subagents do most of the work. Always set the agent's `model`
@@ -141,7 +168,7 @@ concisely is fine. Whenever you mention a PR, give the entire GitHub URL, not ju
 ### Shape
 
 ```md
-↩️ Direct answer to my last question. A loose line, no heading. Omit it if I asked nothing.
+↩️ Direct answer to your last question. A loose line, no heading. Omit it if you asked nothing.
    Mid-job it carries the state too: "step 3 of 5 done".
 
 Normal prose: reasoning, tables, code — anything that has no section of its own.
@@ -158,7 +185,7 @@ Normal prose: reasoning, tables, code — anything that has no section of its ow
 ## 🔀 Decisions needed from user
 ## ✨ Suggestions/recommendations to user
 
-Next: One thing I can do in under two minutes — "open the file" counts. Omit it if nothing is open.   [status token]
+Next: One thing I can do for you in under two minutes — "open the file" counts. Omit it if nothing is open.   [status token]
 ```
 
 ### The seven sections

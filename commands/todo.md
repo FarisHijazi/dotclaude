@@ -10,14 +10,14 @@ The file is the only state. No DB, no queue, no gateway. tmux is the registry fo
 Args: `$ARGUMENTS`. `--dry` = print the routing table and stop (change nothing). A substring or
 line number restricts to matching items. Default scope: unchecked `- [ ]` items outside a
 `## Garbage` section, skipping `@low` unless named explicitly, skipping lines that already carry
-`@tcc(`, `@agent`, or `@you`.
+`@tcc(`, `@ai`, or `@user`.
 
 ## 1. Classify every item (do this yourself, cheaply - do NOT start working yet)
 
 First match wins:
 
 1. **YOU** - needs the human or a third party: physical action, a login/MFA, a decision, a message
-   to a person ("ask X", "talk to X"), spending money. Do not spawn. Tag the line `@you`.
+   to a person ("ask X", "talk to X"), spending money. Do not spawn. Tag the line `@user`.
 2. **INLINE** - doable in <= 3 tool calls with no real reading (one command, one-line edit, one
    lookup, writing a note). Do it now, in this session.
 3. **AGENT** (subagent, `run_in_background`) - read-heavy or research: investigate, compare,
@@ -42,13 +42,13 @@ Otherwise execute without asking, EXCEPT TCC items that are destructive or outwa
 
 - INLINE: do it, verify, then tick.
 - AGENT: `Agent` tool, background, prompt = the item text + relevant paths + "write findings to
-  docs/research/<date>/<slug>.md, reply < 200 words". Tag the line `@agent`.
+  docs/research/<date>/<slug>.md, reply < 200 words". Tag the line `@ai`.
 - TCC: spawn detached, never switching the user's client:
   `env -u TMUX tcc-bg <dir> "<worker prompt>"` (prints the session name). Tag the line
   `@tcc(<session>)`. Worker prompt must contain: the item verbatim, the context paths, the
   definition of done (tested), and the closing duty: "when finished, in <TODO file> change this
   exact line's `[ ]` to `[x]`, append `@done(<YY-MM-DD>) - <one line result>`, then stop. If
-  blocked on the human, replace `@tcc(...)` with `@you(<what you need>)`."
+  blocked on the human, replace `@tcc(...)` with `@user(<what you need>)`."
   Workers never edit any other line.
 
 ## 4. Write back (small, line-local edits only)
@@ -61,4 +61,4 @@ Otherwise execute without asking, EXCEPT TCC items that are destructive or outwa
 ## 5. Finish
 
 End with the table's final state: counts per route, session names to look at, and the
-`@you` items (what exactly is needed). Keep it short.
+`@user` items (what exactly is needed). Keep it short.
