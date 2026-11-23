@@ -241,6 +241,14 @@ tcc() {
   rid="$(_claude_resume_id "${CLAUDE_ARGV[@]}")"
   [ -z "$rid" ] || _claude_resume_cd "$rid" || return 1
 
+  # Remote Control names a session once, when its bridge registers: the
+  # conversation title if it has one (a resume), else "<prefix>-<two words>"
+  # with the hostname as prefix. "<host>-<project>" says which box and repo an
+  # untitled session is. TCC_RC_PREFIX overrides it; TCC_RC_PREFIX= (empty)
+  # keeps Claude's default.
+  local rc_prefix="${TCC_RC_PREFIX-$(hostname -s)-$(basename "$PWD")}"
+  [ "${TCC_PLAIN:-}" != 1 ] && [ -n "$rc_prefix" ] && launch+=(--remote-control-session-name-prefix "$rc_prefix")
+
   TCC_SID="$sid" _tagent tcc "${launch[@]}" --dangerously-skip-permissions "${sid_arg[@]}" "${CLAUDE_ARGV[@]}"
 }
 
