@@ -284,7 +284,9 @@ _tagent() {
   done
   session="${base_name}-${n}"
 
-  local cmd="tmux set-option status-style bg=colour${color};"
+  # cd explicitly: a pane inherits the tmux SERVER's cwd, not -c, when that cwd
+  # was deleted under it (a long-lived server whose start dir got moved).
+  local cmd="cd $(printf '%q' "$PWD") || exit 1; tmux set-option status-style bg=colour${color};"
   for a in "$@"; do
     cmd+=" $(printf '%q' "$a")"
   done
