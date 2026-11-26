@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# tmux-resurrect-claude-ids <snapshot> — resurrect's post-save-layout hook
+# (~/.tmux.conf). Appends "claude_session TAB session TAB window TAB pane TAB uuid"
+# for every pane with a claude under it (the outermost one), uuid = the conversation it is LIVE in
+# (claude-live-sessions). Resurrect only saves argv, which keeps the launch id
+# after a /resume or /clear; tmux-restore prefers this line over it. Runs before
+# resurrect's "unchanged snapshot" dedupe, so a switched conversation alone is
+# enough to keep a new snapshot. Silent and always exit 0: it runs inside every save.
+. "${BASH_SOURCE[0]%/*}/../scripts/claude-shell.sh" || exit 0
+snap="${1:?usage: tmux-resurrect-claude-ids <snapshot>}"
+panes="$(tmux list-panes -a -F '#{pane_pid}	#{session_name}	#{window_index}	#{pane_index}')" || exit 0
+live="$(claude-live-sessions)"
+printf '%s\n' "$live" | while IFS=$'\t' read -r sid pid; do
+  while [ "${pid:-0}" -gt 1 ]; do
+    hit="$(printf '%s\n' "$panes" | awk -F'\t' -v p="$pid" '$1 == p { print $2 "\t" $3 "\t" $4; exit }')"
+    if [ -n "$hit" ]; then
+      printf 'claude_session\t%s\t%s\n' "$hit" "$sid" >>"$snap"
+      break
+    fi
+    pid="$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')"
+    # a claude started BY another claude (claude -p from a tool) is not the pane's
+    printf '%s\n' "$live" | cut -f2 | grep -qx -- "$pid" && break
+  done
+done
+exit 0
