@@ -31,13 +31,21 @@ def transcript(home, cwd, sid=SID, root=".claude"):
     return path
 
 
+def ended(home, sid=SID):
+    marker = home / "state" / "tcc" / "ended" / sid
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.write_text("0\n")
+    os.utime(marker, (4_000_000_000, 4_000_000_000))
+    return marker
+
+
 def run_shell(tmp_path, shell, script, *args):
     executable = shutil.which(shell)
     if executable is None:
         pytest.skip(f"{shell} is not installed")
     runner = tmp_path / "runner.sh"
     runner.write_text(script)
-    env = dict(os.environ, HOME=str(tmp_path), XDG_STATE_HOME=str(tmp_path / "state"))
+    env = dict(os.environ, HOME=str(tmp_path), XDG_STATE_HOME=str(tmp_path / "state"), TCC_RC_PREFIX="")
     for name in ("TCC_PLAIN", "TCC_MAIN_ACCOUNT", "TCC_PRIVATE", "TMUX_RESTORE_EXCLUDE"):
         env.pop(name, None)
     return subprocess.run(
@@ -61,11 +69,9 @@ def test_restore_routes_native_and_router_snapshots_through_launcher(
         "pane", "saved-chat", "1", ":window", "1", ":*", "0", f":{tmp_path}",
         "1", "claude", saved_command,
     ]) + "\n")
-    if clean:
-        marker = tmp_path / "state" / "tcc" / "ended" / SID
-        marker.parent.mkdir(parents=True)
-        marker.write_text("0\n")
     transcript(tmp_path, tmp_path)
+    if clean:
+        ended(tmp_path)
     output = tmp_path / "argv"
     result = run_shell(
         tmp_path, shell,
@@ -121,11 +127,9 @@ def test_restore_propagates_launcher_failure(tmp_path, shell, clean):
         "pane", "saved-chat", "1", ":window", "1", ":*", "0", f":{tmp_path}",
         "1", "claude", f":claude --session-id {SID}",
     ]) + "\n")
-    if clean:
-        marker = tmp_path / "state" / "tcc" / "ended" / SID
-        marker.parent.mkdir(parents=True)
-        marker.write_text("0\n")
     transcript(tmp_path, tmp_path)
+    if clean:
+        ended(tmp_path)
     result = run_shell(
         tmp_path, shell,
         "ps() { :; }\ntcc() { return 127; }\n"
@@ -204,3 +208,98 @@ def test_restore_uses_transcript_cwd_and_skips_missing(tmp_path, shell):
     assert all(c.startswith(f"tcc {project} -r {SID}") for c in calls)
     assert "x lost" in result.stderr and "x named" in result.stderr
     assert "decoy" not in result.stdout + result.stderr
+
+
+OTHER = "11111111-2222-3333-4444-555555555555"
+
+
+def pane_row(tmp_path, command, session="chat"):
+    (tmp_path / ".tmux" / "resurrect").mkdir(parents=True, exist_ok=True)
+    # resurrect's real pane_format: session, window_index, window_active, :flags, pane_index, title, :path
+    return "\t".join(["pane", session, "0", "1", ":*", "0", "title", f":{tmp_path}", "1", "claude", command])
+
+
+@pytest.mark.parametrize("shell", ["bash", "zsh"])
+def test_restore_prefers_live_conversation_over_launch_id(tmp_path, shell):
+    """/resume inside a pane keeps the launch id in argv; the save hook's line wins."""
+    snapshot = tmp_path / "snap.txt"
+    snapshot.write_text(
+        pane_row(tmp_path, f":claude --session-id {SID}") + "\n"
+        + f"claude_session\tchat\t0\t0\t{OTHER}\n"
+    )
+    transcript(tmp_path, tmp_path)
+    transcript(tmp_path, tmp_path, sid=OTHER)
+    result = run_shell(
+        tmp_path, shell,
+        "ps() { :; }\ntcc() { echo \"tcc $*\" >> \"$OUT\"; }\n"
+        + functions(*LOCATE, "claude-live-sessions", "tmux-restore")
+        + '\nOUT="$1"\ntmux-restore -f "$2"\n', str(tmp_path / "calls"), str(snapshot),
+    )
+    assert result.returncode == 0, result.stderr
+    assert (tmp_path / "calls").read_text().split()[:3] == ["tcc", "-r", OTHER]
+
+
+@pytest.mark.parametrize("shell", ["bash", "zsh"])
+def test_restore_skips_conversation_live_under_another_launch_id(tmp_path, shell):
+    snapshot = tmp_path / "snap.txt"
+    snapshot.write_text(pane_row(tmp_path, f":claude --session-id {SID}") + "\n")
+    transcript(tmp_path, tmp_path)
+    result = run_shell(
+        tmp_path, shell,
+        "ps() { :; }\ntcc() { echo called >> \"$OUT\"; }\n"
+        + functions(*LOCATE, "tmux-restore")
+        + f'\nclaude-live-sessions() {{ printf "%s\\t42\\n" {SID}; }}\n'
+        + 'OUT="$1"\ntmux-restore -f "$2"\n', str(tmp_path / "calls"), str(snapshot),
+    )
+    assert result.returncode == 0, result.stderr
+    assert "already running" in result.stdout
+    assert not (tmp_path / "calls").exists()
+
+
+@pytest.mark.parametrize("shell", ["bash", "zsh"])
+def test_restore_nudges_when_transcript_outlived_clean_exit_marker(tmp_path, shell):
+    snapshot = tmp_path / "snap.txt"
+    snapshot.write_text(pane_row(tmp_path, f":claude --session-id {SID}") + "\n")
+    marker = ended(tmp_path)
+    os.utime(transcript(tmp_path, tmp_path), (4_100_000_000, 4_100_000_000))
+    result = run_shell(
+        tmp_path, shell,
+        "ps() { :; }\ntcc() { :; }\n"
+        + functions(*LOCATE, "claude-live-sessions", "tmux-restore")
+        + '\ntmux-restore -f "$1"\n', str(snapshot),
+    )
+    assert marker.exists()
+    assert "exited abruptly" in result.stdout, result.stdout + result.stderr
+
+
+def fake_bin(tmp_path, name, body):
+    path = tmp_path / "fakebin" / name
+    path.parent.mkdir(exist_ok=True)
+    path.write_text("#!/bin/sh\n" + body)
+    path.chmod(0o755)
+
+
+def test_save_hook_records_outermost_live_claude_per_pane(tmp_path):
+    """pane pid 100 -> router 200 -> claude 300 (in OTHER) -> nested claude 400; 500 is a stale pid file."""
+    sessions = tmp_path / ".claude" / "sessions"
+    sessions.mkdir(parents=True)
+    for pid, sid in [(300, OTHER), (400, SID), (500, SID)]:
+        (sessions / f"{pid}.json").write_text(f'{{"pid":{pid},"sessionId":"{sid}","cwd":"/x"}}')
+    fake_bin(tmp_path, "tmux", 'printf "100\\tchat\\t0\\t1\\n"\n')
+    fake_bin(tmp_path, "ps", """case "$*" in
+*comm=*-p\ 300*|*comm=*-p\ 400*) echo claude ;;
+*comm=*) echo bash ;;
+*ppid=*-p\ 400*) echo 300 ;;
+*ppid=*-p\ 300*) echo 200 ;;
+*ppid=*-p\ 200*) echo 100 ;;
+*ppid=*) echo 1 ;;
+esac
+""")
+    snapshot = tmp_path / "snap.txt"
+    snapshot.write_text("pane\tchat\n")
+    hook = Path(__file__).parents[1] / "bin" / "tmux-resurrect-claude-ids"
+    env = dict(os.environ, HOME=str(tmp_path), PATH=f"{tmp_path / 'fakebin'}:{os.environ['PATH']}")
+    env.pop("CLAUDE_CONFIG_DIR", None)
+    result = subprocess.run([str(hook), str(snapshot)], env=env, capture_output=True, text=True, timeout=10)
+    assert result.returncode == 0, result.stderr
+    assert snapshot.read_text().splitlines()[1:] == [f"claude_session\tchat\t0\t1\t{OTHER}"]

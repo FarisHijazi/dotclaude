@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # claude-shell.sh — Claude Code shell commands: cc, tcc, tcodex, topencode,
 # tcca, tls, tmux-restore. Compatible with bash and zsh.
 #
@@ -109,7 +110,7 @@ _claude_resume_cd() {
   dir="${loc%%$'\t'*}"
   [ "$dir" = "$PWD" ] && return 0
   echo "resuming $1 in $dir" >&2
-  cd "$dir"
+  cd "$dir" || return 1
 }
 
 cc() {
@@ -286,7 +287,8 @@ _tagent() {
 
   # cd explicitly: a pane inherits the tmux SERVER's cwd, not -c, when that cwd
   # was deleted under it (a long-lived server whose start dir got moved).
-  local cmd="cd $(printf '%q' "$PWD") || exit 1; tmux set-option status-style bg=colour${color};"
+  local cmd
+  cmd="cd $(printf '%q' "$PWD") || exit 1; tmux set-option status-style bg=colour${color};"
   for a in "$@"; do
     cmd+=" $(printf '%q' "$a")"
   done
@@ -379,6 +381,28 @@ tls() {
   tmux ls 2>/dev/null | grep -E "^(${pat}):"
 }
 
+# claude-live-sessions — "<uuid> TAB <pid>" for every running claude, read from
+# the <config>/sessions/<pid>.json claude keeps about itself. That file, not
+# argv, says which conversation a process is in: /resume, /clear and /branch
+# switch it in place while argv keeps the launch id (dev, 2026-11-26: a pane
+# launched as eb2c5547 had been /resume'd into 6d182b4a, and the reboot restore
+# brought back the empty eb2c5547). A file whose pid is no longer a claude is
+# stale (pids are reused after a reboot) and ignored.
+claude-live-sessions() {
+  [ -n "${ZSH_VERSION:-}" ] && setopt localoptions nullglob
+  local r f pid sid
+  for r in ${CLAUDE_CONFIG_DIR:+"$CLAUDE_CONFIG_DIR"} "$HOME/.claude" \
+    "$HOME"/.local/state/claude-codex/account-router/accounts/*/claude; do
+    for f in "$r"/sessions/*.json; do
+      [ -f "$f" ] || continue
+      pid="$(basename "$f" .json)"
+      case "$(ps -o comm= -p "$pid" 2>/dev/null)" in *claude*) ;; *) continue ;; esac
+      sid="$(grep -o '"sessionId":"[^"]*"' "$f" | head -1 | cut -d'"' -f4)"
+      [ -n "$sid" ] && printf '%s\t%s\n' "$sid" "$pid"
+    done
+  done | sort -u
+}
+
 # ---------------------------------------------------------------------------
 # tmux-restore — bring every Claude Code conversation back after a reboot or a
 # crash, each as its own fresh `tcc -r <uuid>` session. Layout is NOT restored
@@ -389,6 +413,8 @@ tls() {
 # Source is the newest tmux-resurrect snapshot (continuum saves every 5 min).
 # Each claude pane there carries its conversation id in its saved command line
 # -- tcc mints it with --session-id -- so every pane resumes its OWN chat.
+# The id actually live in the pane wins over that launch id: the resurrect
+# save hook bin/tmux-resurrect-claude-ids appends it as a claude_session line.
 #
 # Idempotent: a conversation whose id is already in a running process is
 # skipped, so re-running (or running against a live server) never duplicates.
@@ -406,7 +432,7 @@ tls() {
 tmux-restore() {
   local dir src f ex cnt dry=0 pick="" list=0 best bestn srcn
   # `cwd`, never `path`: in zsh `path` IS $PATH (tied array), `local path` empties it
-  local cwd arg sess pd t nudge res=() n_up=0 n_nudge=0 n_skip=0 n_fail=0
+  local cwd arg sess pd t nudge live res=() n_up=0 n_nudge=0 n_skip=0 n_fail=0
   local endd="${XDG_STATE_HOME:-$HOME/.local/state}/tcc/ended"
 
   ex="${TMUX_RESTORE_EXCLUDE:-^(hq-|hub/)}"
@@ -499,10 +525,12 @@ USAGE
   fi
 
   echo "tmux-restore: $(basename "$src")  ($(date -r "$src" '+%F %H:%M' 2>/dev/null))"
+  live="$(claude-live-sessions)"
   # A tcc pane launched through claude-accounts is saved as the router's python
   # command line (claude is its grandchild); claude's args follow its `--`.
   # One line per conversation: <session> TAB <cwd> TAB <resume arg>.
-  # The resume arg is the uuid after --session-id / -r / --resume, else a
+  # The resume arg is the pane's claude_session uuid (the live one), else the
+  # uuid after --session-id / -r / --resume, else a
   # `--resume <name>` (ps output lost its quoting, so every word up to the next
   # option is the name), else "-c" (a bare claude or bare -r). The loop pins
   # the last two to a uuid.
@@ -532,12 +560,15 @@ USAGE
     fi
     cwd="${f%%$'\t'*}"
     res=(-r "$arg")
-    if ps -eo args= 2>/dev/null | grep -F -- "$arg" | grep -qv 'grep'; then
+    if printf '%s\n' "$live" | cut -f1 | grep -qxF -- "$arg" ||
+      ps -eo args= 2>/dev/null | grep -F -- "$arg" | grep -qv 'grep'; then
       echo "  = $sess  (already running)"
       n_skip=$((n_skip + 1))
       continue
     fi
-    if [ -f "$endd/$arg" ]; then
+    # A marker older than the transcript is from an EARLIER clean exit: the
+    # conversation was resumed again since (e.g. by /resume in another pane).
+    if [ -f "$endd/$arg" ] && ! [ "${f#*$'\t'}" -nt "$endd/$arg" ]; then
       echo "  + $sess  $cwd  ${res[*]}"
       [ "$dry" -eq 1 ] || (
         cd "$cwd" || exit 1
@@ -554,21 +585,26 @@ USAGE
     n_up=$((n_up + 1))
   done < <(awk -v ex="$ex" '
     BEGIN { FS = "\t" }
+    NR == FNR { if ($1 == "claude_session") live[$2 SUBSEP $3 SUBSEP $4] = $5; next }
     $1 != "pane" || $2 ~ ex { next }
-    $11 !~ /^:claude( |$)/ && $11 !~ /\/claude-account-router .* -- / { next }
     {
-      path = $8; sub(/^:/, "", path)
-      n = split(substr($11, 2), a, / +/); id = ""; name = ""; on = 0
-      for (i = 1; i <= n; i++) {
-        if (on) { if (a[i] ~ /^-/) break; name = name (name == "" ? "" : " ") a[i]; continue }
-        if (a[i] == "--session-id" || a[i] == "-r" || a[i] == "--resume") {
-          if (a[i + 1] ~ /^[0-9a-fA-F-]{36}$/) { id = a[i + 1]; break }
-          if (a[i] != "--session-id") on = 1
+      k = $2 SUBSEP $3 SUBSEP $6
+      if (k in live) arg = live[k]
+      else if ($11 !~ /^:claude( |$)/ && $11 !~ /\/claude-account-router .* -- /) next
+      else {
+        n = split(substr($11, 2), a, / +/); id = ""; name = ""; on = 0
+        for (i = 1; i <= n; i++) {
+          if (on) { if (a[i] ~ /^-/) break; name = name (name == "" ? "" : " ") a[i]; continue }
+          if (a[i] == "--session-id" || a[i] == "-r" || a[i] == "--resume") {
+            if (a[i + 1] ~ /^[0-9a-fA-F-]{36}$/) { id = a[i + 1]; break }
+            if (a[i] != "--session-id") on = 1
+          }
         }
+        arg = id != "" ? id : (name != "" ? name : "-c")
       }
-      arg = id != "" ? id : (name != "" ? name : "-c")
+      path = $8; sub(/^:/, "", path)
       if (!seen[arg SUBSEP path]++) print $2 "\t" path "\t" arg
-    }' "$src")
+    }' "$src" "$src")
 
   [ "$dry" -eq 1 ] || echo "tmux-restore: $n_up started ($n_nudge nudged), $n_skip already running. Run 'tw' to see them."
   [ "$n_fail" -eq 0 ] || {
